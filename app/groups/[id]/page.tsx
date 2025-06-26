@@ -3,8 +3,12 @@ import { notFound } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
-export default async function Group({ params }: { params: { id: string } }) {
-  const { id: groupId } = params;
+export default async function Group({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id: groupId } = await params;
 
   const { group, prompt, response, error } = await getGroupPromptPageData(
     groupId
