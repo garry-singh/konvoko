@@ -14,6 +14,8 @@ export default async function Group({
     groupId
   );
 
+  console.log(group, prompt, response);
+
   if (error || !group || !prompt) return notFound();
 
   return (
@@ -24,7 +26,7 @@ export default async function Group({
       <hr />
 
       <h2 className="text-lg font-semibold">This Week&apos;s Prompt</h2>
-      <p className="text-base">{prompt.prompt_text}</p>
+      <p className="text-base">{prompt.content}</p>
 
       <form>
         <Textarea
