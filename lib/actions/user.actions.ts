@@ -222,5 +222,22 @@ export async function searchUsers(query: string, limit = 10) {
     return { users: [] };
   }
 
-  return { users: data || [] };
+  // For each user, check if a connection exists
+  const usersWithStatus = await Promise.all(
+    (data || []).map(async (user) => {
+      const { data: connection } = await supabase
+        .from("connections")
+        .select("status")
+        .or(
+          `and(requester_id.eq.${userId},recipient_id.eq.${user.id}),and(requester_id.eq.${user.id},recipient_id.eq.${userId})`
+        )
+        .maybeSingle();
+      return {
+        ...user,
+        connectionStatus: connection?.status || null,
+      };
+    })
+  );
+
+  return { users: usersWithStatus };
 } 

@@ -88,6 +88,12 @@ export async function respondToFriendRequest(connectionId: string, accept: boole
     return { error: error.message };
   }
 
+  // Notify the requester of the outcome
+  await createNotification(connection.requester_id, accept ? "friend_request_accepted" : "friend_request_declined", {
+    from: userId,
+    from_name: (await supabase.from("profiles").select("full_name").eq("id", userId).single()).data?.full_name || "Someone",
+  });
+
   // Update friend counts if accepted
   if (accept) {
     // Update requester's friend count

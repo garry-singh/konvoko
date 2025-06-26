@@ -11,6 +11,7 @@ export default function FindFriends() {
       id: string;
       full_name: string;
       avatar_url: string;
+      connectionStatus?: string | null;
     }[]
   >([]);
   const [loading, setLoading] = useState(false);
@@ -50,16 +51,26 @@ export default function FindFriends() {
               <Image
                 src={user.avatar_url}
                 alt=""
+                width={32}
+                height={32}
                 className="w-8 h-8 rounded-full"
               />
             )}
             <span>{user.full_name}</span>
             <button
               className="btn"
-              disabled={sent.includes(user.id)}
+              disabled={
+                user.connectionStatus === "pending" ||
+                user.connectionStatus === "accepted" ||
+                sent.includes(user.id)
+              }
               onClick={() => handleAddFriend(user.id)}
             >
-              {sent.includes(user.id) ? "Request Sent" : "Add Friend"}
+              {user.connectionStatus === "accepted"
+                ? "Friends"
+                : user.connectionStatus === "pending" || sent.includes(user.id)
+                ? "Request Sent"
+                : "Add Friend"}
             </button>
           </div>
         ))}
