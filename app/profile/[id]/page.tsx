@@ -5,8 +5,12 @@ import {
   getUserResponseFeed,
 } from "@/lib/actions/user.actions";
 
-export default async function Profile({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function Profile({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
   const { profile } = await getUserProfile(id);
   const { responseCount, totalVotesReceived, friendCount } = await getUserStats(
     id
