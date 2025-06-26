@@ -1,7 +1,7 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { createClient } from "@supabase/supabase-js";
 import { Webhook } from "svix";
-import type { Readable } from "stream";
+import { createClient } from "@supabase/supabase-js";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -10,62 +10,80 @@ const supabase = createClient(
 
 const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET!;
 
+// Define the shape of Clerk user
+type ClerkUser = {
+  id: string;
+  email: string;
+  username: string;
+  avatar_url?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+};
+
+// Define shape of event payload
+type ClerkWebhookEvent = {
+  type: "user.created" | "user.updated" | "user.deleted";
+  data: {
+    object: ClerkUser;
+  };
+};
+
 export const config = {
   api: {
-    bodyParser: false, // We need the raw body for signature verification
+    bodyParser: false,
   },
 };
 
-function buffer(readable: Readable) {
-  return new Promise<Buffer>((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    readable.on("data", (chunk: Buffer) => chunks.push(chunk));
-    readable.on("end", () => resolve(Buffer.concat(chunks)));
-    readable.on("error", reject);
-  });
-}
+export async function POST(req: NextRequest) {
+  const svixId = req.headers.get("svix-id");
+  const svixTimestamp = req.headers.get("svix-timestamp");
+  const svixSignature = req.headers.get("svix-signature");
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).end();
+  if (!svixId || !svixTimestamp || !svixSignature) {
+    return NextResponse.json({ error: "Missing svix headers" }, { status: 400 });
+  }
 
-  // 1. Get the raw body
-  const buf = await buffer(req);
-  const payload = buf.toString("utf8");
+  const payloadBuffer = await req.arrayBuffer();
+  const payloadString = Buffer.from(payloadBuffer).toString("utf8");
 
-  // 2. Get headers
-  const svixId = req.headers["svix-id"] as string;
-  const svixTimestamp = req.headers["svix-timestamp"] as string;
-  const svixSignature = req.headers["svix-signature"] as string;
+  let event: ClerkWebhookEvent;
 
-  // 3. Verify signature
-  const wh = new Webhook(WEBHOOK_SECRET);
-  let event: Record<string, unknown>;
   try {
-    event = wh.verify(payload, {
+    const wh = new Webhook(WEBHOOK_SECRET);
+    event = wh.verify(payloadString, {
       "svix-id": svixId,
       "svix-timestamp": svixTimestamp,
       "svix-signature": svixSignature,
-    }) as Record<string, unknown>;
-  } catch {
-    return res.status(400).json({ error: "Invalid signature" });
+    }) as ClerkWebhookEvent;
+  } catch (err) {
+    console.error("Webhook verification failed", err);
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  // 4. Now handle the event as before
-  if (event.type === "user.created" || event.type === "user.updated") {
-    const user = event.data as Record<string, unknown>;
-    await supabase.from("profiles").upsert({
-      id: user.id,
-      full_name: [user.first_name, user.last_name].filter(Boolean).join(" "),
-      avatar_url: user.image_url,
-      username: user.username,
-    });
+  const user = event.data.object;
+
+  switch (event.type) {
+    case "user.created":
+    case "user.updated":
+      await supabase.from("profiles").upsert({
+        id: user.id,
+        full_name: [user.first_name, user.last_name].filter(Boolean).join(" "),
+        avatar_url: user.avatar_url ?? null,
+        username: user.username ?? null,
+        email: user.email ?? null,
+        first_name: user.first_name ?? null,
+        last_name: user.last_name ?? null,
+      });
+      break;
+
+    case "user.deleted":
+      await supabase.from("profiles").delete().eq("id", user.id);
+      break;
+
+    default:
+      console.warn("Unhandled webhook type:", event.type);
   }
 
-  if (event.type === "user.deleted") {
-    const user = event.data as Record<string, unknown>;
-    await supabase.from("profiles").delete().eq("id", user.id);
-    // Optionally, you can also delete or anonymize related data in other tables
-  }
-
-  res.status(200).json({ received: true });
-} 
+  return NextResponse.json({ received: true }, { status: 200 });
+}
