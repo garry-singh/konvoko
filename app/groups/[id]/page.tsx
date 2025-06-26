@@ -4,7 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
 export default async function Group({ params }: { params: { id: string } }) {
-  const groupId = params.id;
+  const { id: groupId } = params;
+
   const { group, prompt, response, error } = await getGroupPromptPageData(
     groupId
   );
@@ -18,7 +19,7 @@ export default async function Group({ params }: { params: { id: string } }) {
 
       <hr />
 
-      <h2 className="text-lg font-semibold">This Week’s Prompt</h2>
+      <h2 className="text-lg font-semibold">This Week&apos;s Prompt</h2>
       <p className="text-base">{prompt.prompt_text}</p>
 
       <form>
