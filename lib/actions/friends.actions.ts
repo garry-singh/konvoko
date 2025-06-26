@@ -2,6 +2,7 @@
 
 import { createSupabaseClient } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
+import { createNotification } from "@/lib/actions/notifications.actions";
 
 export async function sendFriendRequest(recipientId: string) {
   const { userId } = await auth();
@@ -24,6 +25,13 @@ export async function sendFriendRequest(recipientId: string) {
     return { error: "Connection already exists" };
   }
 
+  // Get sender's profile for notification
+  const { data: senderProfile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .single();
+
   const { data, error } = await supabase
     .from("connections")
     .insert({
@@ -38,6 +46,12 @@ export async function sendFriendRequest(recipientId: string) {
     console.error("Error sending friend request:", error);
     return { error: error.message };
   }
+
+  // Create notification for recipient
+  await createNotification(recipientId, "friend_request", {
+    from: userId,
+    from_name: senderProfile?.full_name || "Someone",
+  });
 
   return { data };
 }
