@@ -1,8 +1,9 @@
+import type { NextApiRequest, NextApiResponse } from "next";
+import type { Readable } from "stream";
 import { Webhook } from "svix";
 import { createClient } from "@supabase/supabase-js";
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
 
+// Supabase client (using service role)
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -10,42 +11,59 @@ const supabase = createClient(
 
 const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET!;
 
-// Define the shape of Clerk user
-type ClerkUser = {
-  id: string;
-  email: string;
-  username: string;
-  avatar_url?: string;
-  first_name?: string;
-  last_name?: string;
-  full_name?: string;
-};
-
-// Define shape of event payload
-type ClerkWebhookEvent = {
-  type: "user.created" | "user.updated" | "user.deleted";
-  data: {
-    object: ClerkUser;
-  };
-};
-
 export const config = {
   api: {
     bodyParser: false,
   },
 };
 
-export async function POST(req: NextRequest) {
-  const svixId = req.headers.get("svix-id");
-  const svixTimestamp = req.headers.get("svix-timestamp");
-  const svixSignature = req.headers.get("svix-signature");
+// Util: Get raw request body
+const getRawBody = async (readable: Readable): Promise<Buffer> => {
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+};
 
-  if (!svixId || !svixTimestamp || !svixSignature) {
-    return NextResponse.json({ error: "Missing svix headers" }, { status: 400 });
+// Types from Clerk API
+type ClerkUserObject = {
+  id: string;
+  email_addresses: { email_address: string }[];
+  username?: string;
+  image_url?: string;
+  first_name?: string;
+  last_name?: string;
+};
+
+type ClerkWebhookEvent =
+  | {
+      type: "user.created" | "user.updated";
+      data: ClerkUserObject;
+    }
+  | {
+      type: "user.deleted";
+      data: { id: string };
+    };
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  const payloadBuffer = await req.arrayBuffer();
-  const payloadString = Buffer.from(payloadBuffer).toString("utf8");
+  const svixId = req.headers["svix-id"] as string;
+  const svixTimestamp = req.headers["svix-timestamp"] as string;
+  const svixSignature = req.headers["svix-signature"] as string;
+
+  if (!svixId || !svixTimestamp || !svixSignature) {
+    return res.status(400).json({ error: "Missing svix headers" });
+  }
+
+  const payloadBuffer = await getRawBody(req);
+  const payloadString = payloadBuffer.toString("utf8");
 
   let event: ClerkWebhookEvent;
 
@@ -57,33 +75,28 @@ export async function POST(req: NextRequest) {
       "svix-signature": svixSignature,
     }) as ClerkWebhookEvent;
   } catch (err) {
-    console.error("Webhook verification failed", err);
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    console.error("Webhook verification failed:", err);
+    return res.status(400).json({ error: "Invalid signature" });
   }
 
-  const user = event.data.object;
+  if (event.type === "user.created" || event.type === "user.updated") {
+    const user = event.data;
+    const email = user.email_addresses?.[0]?.email_address ?? null;
 
-  switch (event.type) {
-    case "user.created":
-    case "user.updated":
-      await supabase.from("profiles").upsert({
-        id: user.id,
-        full_name: [user.first_name, user.last_name].filter(Boolean).join(" "),
-        avatar_url: user.avatar_url ?? null,
-        username: user.username ?? null,
-        email: user.email ?? null,
-        first_name: user.first_name ?? null,
-        last_name: user.last_name ?? null,
-      });
-      break;
-
-    case "user.deleted":
-      await supabase.from("profiles").delete().eq("id", user.id);
-      break;
-
-    default:
-      console.warn("Unhandled webhook type:", event.type);
+    await supabase.from("profiles").upsert({
+      id: user.id,
+      email,
+      username: user.username ?? null,
+      avatar_url: user.image_url ?? null,
+      first_name: user.first_name ?? null,
+      last_name: user.last_name ?? null,
+      full_name: [user.first_name, user.last_name].filter(Boolean).join(" "),
+    });
+  } else if (event.type === "user.deleted") {
+    await supabase.from("profiles").delete().eq("id", event.data.id);
+  } else {
+    console.warn("Unhandled event type:", event.type);
   }
 
-  return NextResponse.json({ received: true }, { status: 200 });
+  return res.status(200).json({ received: true });
 }
