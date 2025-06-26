@@ -1,6 +1,6 @@
 "use server";
 
-import { createSupabaseClient } from "@/lib/supabase";
+import { createServiceRoleSupabaseClient } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
 
 // Define the possible notification data structure
@@ -11,20 +11,24 @@ export type NotificationData =
   | Record<string, unknown>; // fallback for extensibility
 
 export async function createNotification(userId: string, type: string, data: NotificationData = {}) {
-  const supabase = createSupabaseClient();
-  await supabase.from("notifications").insert({
+  const supabase = createServiceRoleSupabaseClient();
+  const { error } = await supabase.from("notifications").insert({
     user_id: userId,
     type,
     data,
     is_read: false,
   });
+
+  if (error) {
+    console.error("Notification insert error:", error);
+  }
 }
 
 export async function getNotifications() {
   const { userId } = await auth();
   if (!userId) return { notifications: [] };
 
-  const supabase = createSupabaseClient();
+  const supabase = createServiceRoleSupabaseClient();
   const { data } = await supabase
     .from("notifications")
     .select("*")
@@ -38,7 +42,7 @@ export async function getUnreadNotificationCount() {
   const { userId } = await auth();
   if (!userId) return { count: 0 };
 
-  const supabase = createSupabaseClient();
+  const supabase = createServiceRoleSupabaseClient();
   const { count } = await supabase
     .from("notifications")
     .select("*", { count: "exact", head: true })
@@ -52,7 +56,7 @@ export async function markNotificationsRead() {
   const { userId } = await auth();
   if (!userId) return;
 
-  const supabase = createSupabaseClient();
+  const supabase = createServiceRoleSupabaseClient();
   await supabase
     .from("notifications")
     .update({ is_read: true })
