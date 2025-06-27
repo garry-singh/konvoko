@@ -18,6 +18,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createGroup } from "@/lib/actions/groups.actions";
 import { redirect, useRouter } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const formSchema = z.object({
   groupName: z
@@ -25,6 +32,9 @@ const formSchema = z.object({
     .min(4, { message: "Username must be at least 4 characters" })
     .max(64, { message: "Username must be less than 64 characters" }),
   groupDescription: z.string(),
+  groupType: z.enum(["public", "private"]),
+  groupMinMembers: z.number().min(2),
+  groupMaxMembers: z.number().max(6),
 });
 
 export default function CreateGroupForm() {
@@ -35,6 +45,9 @@ export default function CreateGroupForm() {
     defaultValues: {
       groupName: "",
       groupDescription: "",
+      groupType: "public",
+      groupMinMembers: 2,
+      groupMaxMembers: 6,
     },
   });
 
@@ -43,7 +56,10 @@ export default function CreateGroupForm() {
     try {
       const result = await createGroup(
         values.groupName,
-        values.groupDescription
+        values.groupDescription,
+        values.groupType,
+        values.groupMinMembers,
+        values.groupMaxMembers
       );
 
       console.log(result);
@@ -107,8 +123,77 @@ export default function CreateGroupForm() {
           )}
         />
 
-        <Button type="submit" className="w-full cursor-pointer">
-          Create Group
+        <FormField
+          control={form.control}
+          name="groupType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Group Type</FormLabel>
+              <FormControl>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a group type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="public">Public</SelectItem>
+                    <SelectItem value="private">Private</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormControl>
+              <FormDescription>
+                A public group is visible to everyone, while a private group is
+                only visible to your friends and you.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="groupMinMembers"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Min Members</FormLabel>
+              <FormControl>
+                <Input placeholder="2" type="number" {...field} min={2} />
+              </FormControl>
+              <FormDescription>
+                The minimum number of members in your group.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="groupMaxMembers"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Max Members</FormLabel>
+              <FormControl>
+                <Input placeholder="4" type="number" {...field} max={6} />
+              </FormControl>
+              <FormDescription>
+                The maximum number of members in your group.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Button
+          type="submit"
+          className="w-full cursor-pointer"
+          disabled={form.formState.isSubmitting}
+        >
+          {form.formState.isSubmitting ? "Creating..." : "Create Group"}
         </Button>
       </form>
     </Form>

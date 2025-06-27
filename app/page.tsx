@@ -36,7 +36,9 @@ export default async function Home() {
           <Button asChild>
             <Link href="/create-group">Create Group</Link>
           </Button>
-          <Button>Join Group</Button>
+          <Button asChild>
+            <Link href="/join-group">Join Group</Link>
+          </Button>
           {groups.length === 0 ? (
             <p>You are not a member of any groups yet.</p>
           ) : (

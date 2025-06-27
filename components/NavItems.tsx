@@ -21,7 +21,9 @@ export default function NavItems() {
       {user && (
         <Link
           href={`/profile/${user.id}`}
-          className="text-primary font-semibold"
+          className={cn(
+            isActive(`/profile/${user.id}`) && "text-primary font-semibold"
+          )}
         >
           Profile
         </Link>
