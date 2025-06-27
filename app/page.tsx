@@ -15,12 +15,21 @@ interface Group {
   member_count?: number;
   max_members?: number;
   creator_username?: string;
+  members?: {
+    user_id: string;
+    profiles: {
+      id: string;
+      full_name: string;
+      avatar_url: string | null;
+    };
+  }[];
 }
 
 export default function Home() {
   const { user } = useUser();
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -35,9 +44,11 @@ export default function Home() {
           console.error("Error fetching groups:", error);
         } finally {
           setIsLoading(false);
+          setHasFetched(true);
         }
       } else {
         setIsLoading(false);
+        setHasFetched(true);
       }
     };
 
@@ -76,7 +87,7 @@ export default function Home() {
                 <GroupListItemSkeleton key={i} />
               ))}
             </div>
-          ) : groups.length === 0 ? (
+          ) : hasFetched && groups.length === 0 ? (
             <div className="text-center py-12">
               <div className="max-w-md mx-auto">
                 <h3 className="text-xl font-semibold mb-2">No groups yet</h3>

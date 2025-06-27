@@ -106,9 +106,19 @@ export const getAllGroups = async () => {
         .select('*', { count: 'exact', head: true })
         .eq('group_id', group.id);
 
+      // Get member profiles for avatars (show all members)
+      const { data: members } = await serviceSupabase
+        .from('group_members')
+        .select(`
+          user_id,
+          profiles!inner(id, full_name, avatar_url)
+        `)
+        .eq('group_id', group.id);
+
       return {
         ...group,
         member_count: memberCount || 0,
+        members: members || [],
         // creator_username is already available from the groups table
       };
     })
@@ -498,13 +508,25 @@ export async function getFriendsGroups() {
     memberCountMap[mc.group_id] = (memberCountMap[mc.group_id] || 0) + 1;
   });
 
-  const groupsWithCount = availableGroups.map((g) => {
-    return {
-      ...g,
-      member_count: memberCountMap[g.id] || 0,
-      // creator_username is already available from the groups table
-    };
-  });
+  const groupsWithCount = await Promise.all(
+    availableGroups.map(async (g) => {
+      // Get member profiles for avatars (show all members)
+      const { data: members } = await serviceSupabase
+        .from('group_members')
+        .select(`
+          user_id,
+          profiles!inner(id, full_name, avatar_url)
+        `)
+        .eq('group_id', g.id);
+
+      return {
+        ...g,
+        member_count: memberCountMap[g.id] || 0,
+        members: members || [],
+        // creator_username is already available from the groups table
+      };
+    })
+  );
 
   return { groups: groupsWithCount };
 }
@@ -564,14 +586,26 @@ export async function getAvailablePublicGroups() {
     memberCountMap[mc.group_id] = (memberCountMap[mc.group_id] || 0) + 1;
   });
 
-  const groupsWithCount = availableGroups.map((g) => {
-    return {
-      ...g,
-      type: "public" as const, // These are all public groups
-      member_count: memberCountMap[g.id] || 0,
-      // creator_username is already available from the groups table
-    };
-  });
+  const groupsWithCount = await Promise.all(
+    availableGroups.map(async (g) => {
+      // Get member profiles for avatars (show all members)
+      const { data: members } = await serviceSupabase
+        .from('group_members')
+        .select(`
+          user_id,
+          profiles!inner(id, full_name, avatar_url)
+        `)
+        .eq('group_id', g.id);
+
+      return {
+        ...g,
+        type: "public" as const, // These are all public groups
+        member_count: memberCountMap[g.id] || 0,
+        members: members || [],
+        // creator_username is already available from the groups table
+      };
+    })
+  );
 
   return { groups: groupsWithCount };
 }

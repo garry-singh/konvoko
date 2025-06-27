@@ -1,14 +1,18 @@
 "use client";
 import Link from "next/link";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Users, MessageCircle } from "lucide-react";
+
+interface GroupMember {
+  user_id: string;
+  profiles: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+  };
+}
 
 interface Group {
   id: string;
@@ -18,6 +22,7 @@ interface Group {
   member_count?: number;
   max_members?: number;
   creator_username?: string;
+  members?: GroupMember[];
 }
 
 interface GroupCardProps {
@@ -25,6 +30,16 @@ interface GroupCardProps {
 }
 
 export default function GroupCard({ group }: GroupCardProps) {
+  // Get initials for avatar fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <Link href={`/groups/${group.id}`}>
       <Card className="h-full transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-pointer group">
@@ -47,13 +62,26 @@ export default function GroupCard({ group }: GroupCardProps) {
                 )}
               </div>
             </div>
+
+            {/* Member Avatars - Top Right */}
+            {group.members && group.members.length > 0 && (
+              <div className="*:data-[slot=avatar]:ring-background flex -space-x-1 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:grayscale">
+                {group.members.map((member) => (
+                  <Avatar key={member.user_id} className="h-6 w-6">
+                    <AvatarImage
+                      src={member.profiles.avatar_url || undefined}
+                      alt={member.profiles.full_name}
+                    />
+                    <AvatarFallback className="text-xs">
+                      {getInitials(member.profiles.full_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="pt-0">
-          <CardDescription className="text-sm line-clamp-2 mb-4">
-            {group.description || "No description available"}
-          </CardDescription>
-
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Users className="h-4 w-4" />
@@ -62,6 +90,7 @@ export default function GroupCard({ group }: GroupCardProps) {
                 {group.max_members && ` / ${group.max_members}`}
               </span>
             </div>
+
             <div className="flex items-center gap-1">
               <MessageCircle className="h-4 w-4" />
               <span>Active</span>
