@@ -50,6 +50,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  console.log("Webhook received:", req.method, req.url);
+  
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
@@ -58,12 +60,17 @@ export default async function handler(
   const svixTimestamp = req.headers["svix-timestamp"] as string;
   const svixSignature = req.headers["svix-signature"] as string;
 
+  console.log("Webhook headers:", { svixId, svixTimestamp, svixSignature: svixSignature ? "present" : "missing" });
+
   if (!svixId || !svixTimestamp || !svixSignature) {
+    console.error("Missing svix headers");
     return res.status(400).json({ error: "Missing svix headers" });
   }
 
   const payloadBuffer = await getRawBody(req);
   const payloadString = payloadBuffer.toString("utf8");
+
+  console.log("Webhook payload received, length:", payloadString.length);
 
   let event: ClerkWebhookEvent;
 
@@ -74,6 +81,7 @@ export default async function handler(
       "svix-timestamp": svixTimestamp,
       "svix-signature": svixSignature,
     }) as ClerkWebhookEvent;
+    console.log("Webhook verified successfully, event type:", event.type);
   } catch (err) {
     console.error("Webhook verification failed:", err);
     return res.status(400).json({ error: "Invalid signature" });
@@ -83,7 +91,9 @@ export default async function handler(
     const user = event.data;
     const email = user.email_addresses?.[0]?.email_address ?? null;
 
-    await supabase.from("profiles").upsert({
+    console.log("Processing user event:", { userId: user.id, email, eventType: event.type });
+
+    const { error } = await supabase.from("profiles").upsert({
       id: user.id,
       email,
       username: user.username ?? null,
@@ -92,8 +102,24 @@ export default async function handler(
       last_name: user.last_name ?? null,
       full_name: [user.first_name, user.last_name].filter(Boolean).join(" "),
     });
+
+    if (error) {
+      console.error("Supabase upsert error:", error);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    console.log("User profile upserted successfully");
   } else if (event.type === "user.deleted") {
-    await supabase.from("profiles").delete().eq("id", event.data.id);
+    console.log("Processing user deletion:", event.data.id);
+    
+    const { error } = await supabase.from("profiles").delete().eq("id", event.data.id);
+    
+    if (error) {
+      console.error("Supabase delete error:", error);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    console.log("User profile deleted successfully");
   } else {
     console.warn("Unhandled event type:", event.type);
   }
