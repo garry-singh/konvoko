@@ -13,7 +13,7 @@ export default function GroupCard({
     description: string;
     member_count: number;
     max_members: number;
-    created_by: string;
+    username: string;
   };
 }) {
   const [isJoining, setIsJoining] = useState(false);
@@ -47,9 +47,7 @@ export default function GroupCard({
     <div className="min-w-[250px] bg-white rounded shadow p-4 flex flex-col">
       <h3 className="font-bold">{group.name}</h3>
       <p className="text-sm text-gray-500 mb-2">{group.description}</p>
-      <p className="text-xs text-gray-400 mb-2">
-        Created by {group.created_by}
-      </p>
+      <p className="text-xs text-gray-400 mb-2">Created by {group.username}</p>
       <div className="text-xs text-gray-400 mb-2">
         {group.member_count} / {group.max_members} members
       </div>

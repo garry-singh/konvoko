@@ -117,6 +117,10 @@ export default function Notifications() {
                   {n.type === "friend_request_accepted" && "✅"}
                   {n.type === "friend_request_declined" && "❌"}
                   {n.type === "member_joined" && "👋"}
+                  {n.type === "member_removed" && "🚪"}
+                  {n.type === "member_promoted" && "⬆️"}
+                  {n.type === "member_demoted" && "⬇️"}
+                  {n.type === "group_deleted" && "🗑️"}
                 </span>
                 <div className="flex-1">
                   {n.type === "friend_request" && (
@@ -196,6 +200,62 @@ export default function Notifications() {
                         <b>
                           {(n.data?.group_name as string) || "Unknown Group"}
                         </b>
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {n.type === "member_removed" && (
+                    <div>
+                      <span>
+                        You were removed from{" "}
+                        <b>
+                          {(n.data?.group_name as string) || "Unknown Group"}
+                        </b>{" "}
+                        by <b>{(n.data?.admin_name as string) || "Admin"}</b>
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {n.type === "member_promoted" && (
+                    <div>
+                      <span>
+                        You were promoted to admin in{" "}
+                        <b>
+                          {(n.data?.group_name as string) || "Unknown Group"}
+                        </b>{" "}
+                        by <b>{(n.data?.admin_name as string) || "Admin"}</b>
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {n.type === "member_demoted" && (
+                    <div>
+                      <span>
+                        You were demoted from admin in{" "}
+                        <b>
+                          {(n.data?.group_name as string) || "Unknown Group"}
+                        </b>{" "}
+                        by <b>{(n.data?.admin_name as string) || "Admin"}</b>
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {n.type === "group_deleted" && (
+                    <div>
+                      <span>
+                        <b>
+                          {(n.data?.group_name as string) || "Unknown Group"}
+                        </b>{" "}
+                        was deleted by{" "}
+                        <b>{(n.data?.admin_name as string) || "Admin"}</b>
                       </span>
                       <div className="text-xs text-gray-500 mt-1">
                         {new Date(n.created_at).toLocaleString()}
@@ -248,6 +308,10 @@ export default function Notifications() {
                   {n.type === "friend_request_accepted" && "✅"}
                   {n.type === "friend_request_declined" && "❌"}
                   {n.type === "member_joined" && "👋"}
+                  {n.type === "member_removed" && "🚪"}
+                  {n.type === "member_promoted" && "⬆️"}
+                  {n.type === "member_demoted" && "⬇️"}
+                  {n.type === "group_deleted" && "🗑️"}
                 </span>
                 <div className="flex-1">
                   {n.type === "friend_request" && (
@@ -327,6 +391,62 @@ export default function Notifications() {
                         <b>
                           {(n.data?.group_name as string) || "Unknown Group"}
                         </b>
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {n.type === "member_removed" && (
+                    <div>
+                      <span>
+                        You were removed from{" "}
+                        <b>
+                          {(n.data?.group_name as string) || "Unknown Group"}
+                        </b>{" "}
+                        by <b>{(n.data?.admin_name as string) || "Admin"}</b>
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {n.type === "member_promoted" && (
+                    <div>
+                      <span>
+                        You were promoted to admin in{" "}
+                        <b>
+                          {(n.data?.group_name as string) || "Unknown Group"}
+                        </b>{" "}
+                        by <b>{(n.data?.admin_name as string) || "Admin"}</b>
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {n.type === "member_demoted" && (
+                    <div>
+                      <span>
+                        You were demoted from admin in{" "}
+                        <b>
+                          {(n.data?.group_name as string) || "Unknown Group"}
+                        </b>{" "}
+                        by <b>{(n.data?.admin_name as string) || "Admin"}</b>
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {n.type === "group_deleted" && (
+                    <div>
+                      <span>
+                        <b>
+                          {(n.data?.group_name as string) || "Unknown Group"}
+                        </b>{" "}
+                        was deleted by{" "}
+                        <b>{(n.data?.admin_name as string) || "Admin"}</b>
                       </span>
                       <div className="text-xs text-gray-500 mt-1">
                         {new Date(n.created_at).toLocaleString()}

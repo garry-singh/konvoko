@@ -9,6 +9,8 @@ export type NotificationData =
   | { prompt_id?: string; prompt_title?: string } // prompt_open, prompt_24h, voting_open
   | { response_id?: string; voter_id?: string; voter_name?: string } // vote_received
   | { group_id?: string; group_name?: string; member_id?: string; member_name?: string } // member_joined
+  | { group_id?: string; group_name?: string; admin_name?: string } // member_removed, member_promoted, member_demoted
+  | { group_name?: string; admin_name?: string } // group_deleted
   | Record<string, unknown>; // fallback for extensibility
 
 export async function createNotification(userId: string, type: string, data: NotificationData = {}) {

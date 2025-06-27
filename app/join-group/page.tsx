@@ -8,9 +8,6 @@ export default async function JoinGroup() {
   const { groups: friendsGroups } = await getFriendsGroups();
   const { groups: publicGroups } = await getAvailablePublicGroups();
 
-  console.log(friendsGroups);
-  console.log(publicGroups);
-
   return (
     <div className="max-w-3xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">Join a Group</h1>

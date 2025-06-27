@@ -52,26 +52,40 @@ export const createGroup = async (
 }
 
 export const getAllGroups = async () => {
-    const { userId } = await auth();
-    if (!userId) {
-      return { error: "User not authenticated" };
-    }
-  
-    const supabase = createSupabaseClient();
-  
-    // Query for groups where the user is the creator or a member
-    const { data, error } = await supabase
-      .from('groups')
-      .select('*')
-      .or(`created_by.eq.${userId}`);
-  
-    if (error) {
-      console.error("Supabase error:", error);
-      return { error: error.message };
-    }
-  
-    return { data };
-  };
+  const { userId } = await auth();
+  if (!userId) {
+    return { error: "User not authenticated" };
+  }
+
+  const serviceSupabase = createServiceRoleSupabaseClient();
+
+  // First, get all groups where the user is a member
+  const { data: memberGroups, error: memberError } = await serviceSupabase
+    .from('group_members')
+    .select('group_id')
+    .eq('user_id', userId);
+
+  if (memberError) {
+    console.error("Error fetching member groups:", memberError);
+    return { error: memberError.message };
+  }
+
+  // Get group IDs where user is a member
+  const memberGroupIds = (memberGroups || []).map(g => g.group_id);
+
+  // Get all groups where user is creator or member
+  const { data, error } = await serviceSupabase
+    .from('groups')
+    .select('*')
+    .or(`created_by.eq.${userId},id.in.(${memberGroupIds.join(',')})`);
+
+  if (error) {
+    console.error("Supabase error:", error);
+    return { error: error.message };
+  }
+
+  return { data: data || [] };
+};
 
 export async function getActivePrompt() {
   const supabase = createSupabaseClient();
@@ -135,44 +149,54 @@ export async function getUpcomingPrompts() {
 }
 
 export async function getGroupPromptPageData(groupId: string) {
-    const { userId } = await auth();
-    if (!userId) return { error: "Not authenticated" };
-  
-    const supabase = createSupabaseClient();
-  
-    // 1. Get group data
-    const { data: group, error: groupError } = await supabase
-      .from("groups")
-      .select("*")
-      .eq("id", groupId)
-      .single();
-  
-    if (groupError || !group) return { error: "Group not found" };
-  
-    // 2. Get the active prompt (static for all groups)
-    const { prompt, error: promptError } = await getActivePrompt();
-    if (promptError) return { error: promptError };
-  
-    // 3. Get this user's response for this group and prompt (if any)
-    const { data: response } = await supabase
-      .from("responses")
-      .select("*")
-      .eq("prompt_id", prompt?.id)
-      .eq("group_id", groupId) // Responses are tied to group + prompt
-      .eq("user_id", userId)
-      .maybeSingle();
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated" };
 
-    // 4. Check if responses are revealed
-    const isRevealed = prompt?.reveal_date && new Date() >= new Date(prompt.reveal_date);
+  const serviceSupabase = createServiceRoleSupabaseClient();
+
+  // 1. Get group data using service role to bypass RLS
+  const { data: group, error: groupError } = await serviceSupabase
+    .from("groups")
+    .select("*")
+    .eq("id", groupId)
+    .single();
+
+  if (groupError || !group) return { error: "Group not found" };
+
+  // 2. Get the active prompt (static for all groups)
+  const { prompt, error: promptError } = await getActivePrompt();
   
+  // If there's no active prompt, still return the group data
+  if (promptError && !prompt) {
     return { 
       group, 
-      prompt, 
-      response,
-      isRevealed,
-      revealDate: prompt?.reveal_date
+      prompt: null, 
+      response: null,
+      isRevealed: false,
+      revealDate: null
     };
   }
+
+  // 3. Get this user's response for this group and prompt (if any)
+  const { data: response } = await serviceSupabase
+    .from("responses")
+    .select("*")
+    .eq("prompt_id", prompt?.id)
+    .eq("group_id", groupId) // Responses are tied to group + prompt
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  // 4. Check if responses are revealed
+  const isRevealed = prompt?.reveal_date && new Date() >= new Date(prompt.reveal_date);
+
+  return { 
+    group, 
+    prompt, 
+    response,
+    isRevealed,
+    revealDate: prompt?.reveal_date
+  };
+}
 
 export async function submitResponse(groupId: string, content: string) {
   const { userId } = await auth();
@@ -410,8 +434,35 @@ export async function getFriendsGroups() {
     return { groups: [] };
   }
 
+  // Get groups the user is already a member of
+  const { data: myGroups } = await serviceSupabase
+    .from("group_members")
+    .select("group_id")
+    .eq("user_id", userId);
+
+  const myGroupIds = (myGroups || []).map((g) => g.group_id);
+
+  // Filter out groups the user is already a member of
+  const availableGroups = groups.filter(g => !myGroupIds.includes(g.id));
+
+  if (availableGroups.length === 0) {
+    return { groups: [] };
+  }
+
+  // Get creator profiles for all groups
+  const creatorIds = availableGroups.map(g => g.created_by);
+  const { data: creatorProfiles, error: creatorProfilesError } = await serviceSupabase
+    .from("profiles")
+    .select("id, full_name, username")
+    .in("id", creatorIds);
+
+  if (creatorProfilesError) {
+    console.error("Error fetching creator profiles:", creatorProfilesError);
+    return { groups: [] };
+  }
+
   // Get member counts for these groups using service role
-  const groupIds = groups.map((g) => g.id);
+  const groupIds = availableGroups.map((g) => g.id);
   const { data: memberCountsRaw, error: memberCountsError } = await serviceSupabase
     .from("group_members")
     .select("group_id")
@@ -429,10 +480,14 @@ export async function getFriendsGroups() {
     memberCountMap[mc.group_id] = (memberCountMap[mc.group_id] || 0) + 1;
   });
 
-  const groupsWithCount = groups.map((g) => ({
-    ...g,
-    member_count: memberCountMap[g.id] || 0,
-  }));
+  const groupsWithCount = availableGroups.map((g) => {
+    const creator = creatorProfiles?.find(p => p.id === g.created_by);
+    return {
+      ...g,
+      member_count: memberCountMap[g.id] || 0,
+      username: creator?.username || creator?.full_name || "Unknown User",
+    };
+  });
 
   return { groups: groupsWithCount };
 }
@@ -441,31 +496,62 @@ export async function getAvailablePublicGroups() {
   const { userId } = await auth();
   if (!userId) return { groups: [] };
 
-  const supabase = createSupabaseClient();
+  const serviceSupabase = createServiceRoleSupabaseClient();
 
-  // Get group IDs the user is already a member of
-  const { data: myGroups } = await supabase
+  // Get all public groups using service role to bypass RLS
+  const { data: groups, error: groupsError } = await serviceSupabase
+    .from("groups")
+    .select("id, name, description, max_members, created_by")
+    .eq("type", "public");
+
+  if (groupsError) {
+    console.error("Error fetching public groups:", groupsError);
+    return { groups: [] };
+  }
+
+  if (!groups || groups.length === 0) {
+    return { groups: [] };
+  }
+
+  // Get groups the user is already a member of
+  const { data: myGroups } = await serviceSupabase
     .from("group_members")
     .select("group_id")
     .eq("user_id", userId);
 
   const myGroupIds = (myGroups || []).map((g) => g.group_id);
 
-  // Get public groups not already joined
-  const { data: groups } = await supabase
-    .from("groups")
-    .select("id, name, description, max_members, created_by, type")
-    .eq("type", "public")
-    .not("id", "in", myGroupIds.length ? `(${myGroupIds.join(",")})` : "(null)");
+  // Filter out groups the user is already a member of
+  const availableGroups = groups.filter(g => !myGroupIds.includes(g.id));
 
-  if (!groups || groups.length === 0) return { groups: [] };
+  if (availableGroups.length === 0) {
+    return { groups: [] };
+  }
 
-  // Get member counts for these groups
-  const groupIds = groups.map((g) => g.id);
-  const { data: memberCountsRaw } = await supabase
+  // Get creator profiles for all groups
+  const creatorIds = availableGroups.map(g => g.created_by);
+  const { data: creatorProfiles, error: creatorProfilesError } = await serviceSupabase
+    .from("profiles")
+    .select("id, full_name, username")
+    .in("id", creatorIds);
+
+  if (creatorProfilesError) {
+    console.error("Error fetching creator profiles:", creatorProfilesError);
+    return { groups: [] };
+  }
+
+  // Get member counts for these groups using service role
+  const groupIds = availableGroups.map((g) => g.id);
+  const { data: memberCountsRaw, error: memberCountsError } = await serviceSupabase
     .from("group_members")
     .select("group_id")
     .in("group_id", groupIds);
+
+  if (memberCountsError) {
+    console.error("Error fetching member counts:", memberCountsError);
+    return { groups: [] };
+  }
+
   const memberCounts = (memberCountsRaw || []) as { group_id: string }[];
 
   const memberCountMap: Record<string, number> = {};
@@ -473,13 +559,14 @@ export async function getAvailablePublicGroups() {
     memberCountMap[mc.group_id] = (memberCountMap[mc.group_id] || 0) + 1;
   });
 
-  // Only return groups that are not full
-  const groupsWithCount = groups
-    .map((g) => ({
+  const groupsWithCount = availableGroups.map((g) => {
+    const creator = creatorProfiles?.find(p => p.id === g.created_by);
+    return {
       ...g,
       member_count: memberCountMap[g.id] || 0,
-    }))
-    .filter((g) => g.member_count < g.max_members);
+      username: creator?.username || creator?.full_name || "Unknown User",
+    };
+  });
 
   return { groups: groupsWithCount };
 }
@@ -530,7 +617,7 @@ export async function joinGroup(groupId: string) {
   }
 
   // Add user to group
-  const { error: joinError } = await supabase
+  const { error: joinError } = await serviceSupabase
     .from("group_members")
     .insert({
       group_id: groupId,
@@ -557,6 +644,316 @@ export async function joinGroup(groupId: string) {
     member_id: userId,
     member_name: userProfile?.full_name || "Someone",
   });
+
+  return { success: true };
+}
+
+// Group Management Functions
+export async function getGroupMembers(groupId: string) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated" };
+
+  const serviceSupabase = createServiceRoleSupabaseClient();
+
+  try {
+    // Get group details to check if user is admin
+    const { data: group, error: groupError } = await serviceSupabase
+      .from("groups")
+      .select("created_by")
+      .eq("id", groupId)
+      .single();
+
+    if (groupError) {
+      console.error("Error fetching group:", groupError);
+      return { error: groupError.message };
+    }
+
+    if (!group) {
+      return { error: "Group not found" };
+    }
+
+    // First, get all group members
+    const { data: members, error: membersError } = await serviceSupabase
+      .from("group_members")
+      .select("user_id, is_admin, created_at")
+      .eq("group_id", groupId)
+      .order("created_at", { ascending: true });
+
+    if (membersError) {
+      console.error("Error fetching group members:", membersError);
+      return { error: membersError.message };
+    }
+
+    if (!members || members.length === 0) {
+      return { 
+        members: [], 
+        isAdmin: group.created_by === userId,
+        isCreator: group.created_by === userId 
+      };
+    }
+
+    // Extract user IDs
+    const userIds = members.map(m => m.user_id);
+
+    // Fetch profiles for all members
+    const { data: profiles, error: profilesError } = await serviceSupabase
+      .from("profiles")
+      .select("id, full_name, avatar_url")
+      .in("id", userIds);
+
+    if (profilesError) {
+      console.error("Error fetching member profiles:", profilesError);
+      return { error: profilesError.message };
+    }
+
+    // Combine members with their profiles
+    const membersWithProfiles = members.map(member => {
+      const profile = profiles?.find(p => p.id === member.user_id);
+      return {
+        user_id: member.user_id,
+        is_admin: member.is_admin,
+        created_at: member.created_at,
+        profiles: profile || { id: member.user_id, full_name: "Unknown User", avatar_url: null },
+      };
+    });
+
+    const isAdmin = group.created_by === userId;
+
+    return { 
+      members: membersWithProfiles, 
+      isAdmin,
+      isCreator: group.created_by === userId 
+    };
+  } catch (error) {
+    console.error("Unexpected error in getGroupMembers:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+export async function removeMember(groupId: string, memberId: string) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated" };
+
+  const serviceSupabase = createServiceRoleSupabaseClient();
+
+  // Check if user is admin
+  const { data: group } = await serviceSupabase
+    .from("groups")
+    .select("created_by")
+    .eq("id", groupId)
+    .single();
+
+  if (!group || group.created_by !== userId) {
+    return { error: "Not authorized to remove members" };
+  }
+
+  // Prevent removing the creator
+  if (memberId === group.created_by) {
+    return { error: "Cannot remove the group creator" };
+  }
+
+  // Remove member
+  const { error: removeError } = await serviceSupabase
+    .from("group_members")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("user_id", memberId);
+
+  if (removeError) {
+    console.error("Error removing member:", removeError);
+    return { error: removeError.message };
+  }
+
+  // Notify the removed member
+  await createNotification(memberId, "member_removed", {
+    group_id: groupId,
+    group_name: (await serviceSupabase.from("groups").select("name").eq("id", groupId).single()).data?.name || "Unknown Group",
+    admin_name: (await serviceSupabase.from("profiles").select("full_name").eq("id", userId).single()).data?.full_name || "Admin",
+  });
+
+  return { success: true };
+}
+
+export async function promoteToAdmin(groupId: string, memberId: string) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated" };
+
+  const serviceSupabase = createServiceRoleSupabaseClient();
+
+  // Check if user is admin
+  const { data: group } = await serviceSupabase
+    .from("groups")
+    .select("created_by")
+    .eq("id", groupId)
+    .single();
+
+  if (!group || group.created_by !== userId) {
+    return { error: "Not authorized to promote members" };
+  }
+
+  // Promote member to admin
+  const { error: promoteError } = await serviceSupabase
+    .from("group_members")
+    .update({ is_admin: true })
+    .eq("group_id", groupId)
+    .eq("user_id", memberId);
+
+  if (promoteError) {
+    console.error("Error promoting member:", promoteError);
+    return { error: promoteError.message };
+  }
+
+  // Notify the promoted member
+  await createNotification(memberId, "member_promoted", {
+    group_id: groupId,
+    group_name: (await serviceSupabase.from("groups").select("name").eq("id", groupId).single()).data?.name || "Unknown Group",
+    admin_name: (await serviceSupabase.from("profiles").select("full_name").eq("id", userId).single()).data?.full_name || "Admin",
+  });
+
+  return { success: true };
+}
+
+export async function demoteFromAdmin(groupId: string, memberId: string) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated" };
+
+  const serviceSupabase = createServiceRoleSupabaseClient();
+
+  // Check if user is admin
+  const { data: group } = await serviceSupabase
+    .from("groups")
+    .select("created_by")
+    .eq("id", groupId)
+    .single();
+
+  if (!group || group.created_by !== userId) {
+    return { error: "Not authorized to demote members" };
+  }
+
+  // Prevent demoting the creator
+  if (memberId === group.created_by) {
+    return { error: "Cannot demote the group creator" };
+  }
+
+  // Demote member from admin
+  const { error: demoteError } = await serviceSupabase
+    .from("group_members")
+    .update({ is_admin: false })
+    .eq("group_id", groupId)
+    .eq("user_id", memberId);
+
+  if (demoteError) {
+    console.error("Error demoting member:", demoteError);
+    return { error: demoteError.message };
+  }
+
+  // Notify the demoted member
+  await createNotification(memberId, "member_demoted", {
+    group_id: groupId,
+    group_name: (await serviceSupabase.from("groups").select("name").eq("id", groupId).single()).data?.name || "Unknown Group",
+    admin_name: (await serviceSupabase.from("profiles").select("full_name").eq("id", userId).single()).data?.full_name || "Admin",
+  });
+
+  return { success: true };
+}
+
+export async function updateGroupSettings(
+  groupId: string, 
+  updates: {
+    name?: string;
+    description?: string;
+    type?: "public" | "private";
+    min_members?: number;
+    max_members?: number;
+  }
+) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated" };
+
+  const serviceSupabase = createServiceRoleSupabaseClient();
+
+  // Check if user is admin
+  const { data: group } = await serviceSupabase
+    .from("groups")
+    .select("created_by, member_count")
+    .eq("id", groupId)
+    .single();
+
+  if (!group || group.created_by !== userId) {
+    return { error: "Not authorized to update group settings" };
+  }
+
+  // Validate max_members is not less than current member count
+  if (updates.max_members && updates.max_members < group.member_count) {
+    return { error: `Cannot set max members below current count (${group.member_count})` };
+  }
+
+  // Update group settings
+  const { data, error: updateError } = await serviceSupabase
+    .from("groups")
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", groupId)
+    .select()
+    .single();
+
+  if (updateError) {
+    console.error("Error updating group settings:", updateError);
+    return { error: updateError.message };
+  }
+
+  return { data };
+}
+
+export async function deleteGroup(groupId: string) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated" };
+
+  const serviceSupabase = createServiceRoleSupabaseClient();
+
+  // Check if user is admin
+  const { data: group } = await serviceSupabase
+    .from("groups")
+    .select("created_by, name")
+    .eq("id", groupId)
+    .single();
+
+  if (!group || group.created_by !== userId) {
+    return { error: "Not authorized to delete group" };
+  }
+
+  // Get all members for notifications
+  const { data: members } = await serviceSupabase
+    .from("group_members")
+    .select("user_id")
+    .eq("group_id", groupId);
+
+  // Delete group (this will cascade delete members and responses)
+  const { error: deleteError } = await serviceSupabase
+    .from("groups")
+    .delete()
+    .eq("id", groupId);
+
+  if (deleteError) {
+    console.error("Error deleting group:", deleteError);
+    return { error: deleteError.message };
+  }
+
+  // Notify all members that the group was deleted
+  const adminName = (await serviceSupabase.from("profiles").select("full_name").eq("id", userId).single()).data?.full_name || "Admin";
+  
+  if (members) {
+    for (const member of members) {
+      if (member.user_id !== userId) { // Don't notify the admin who deleted it
+        await createNotification(member.user_id, "group_deleted", {
+          group_name: group.name,
+          admin_name: adminName,
+        });
+      }
+    }
+  }
 
   return { success: true };
 }
