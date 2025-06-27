@@ -368,32 +368,57 @@ export async function getFriendsGroups() {
 
   const supabase = createSupabaseClient();
 
-  // Get friend IDs
-  const { data: connections } = await supabase
+  // First, get all accepted connections for this user
+  const { data: connections, error: connectionsError } = await supabase
     .from("connections")
     .select("requester_id, recipient_id, status")
-    .or(`requester_id.eq.${userId},recipient_id.eq.${userId}`)
-    .eq("status", "accepted");
+    .or(`and(requester_id.eq.${userId},status.eq.accepted),and(recipient_id.eq.${userId},status.eq.accepted)`);
 
-  const friendIds = (connections || [])
-    .map((c) => (c.requester_id === userId ? c.recipient_id : c.requester_id));
+  if (connectionsError) {
+    console.error("Error fetching friend connections:", connectionsError);
+    return { groups: [] };
+  }
 
-  if (friendIds.length === 0) return { groups: [] };
+  if (!connections || connections.length === 0) {
+    return { groups: [] };
+  }
+
+  // Extract friend IDs from connections
+  const friendIds = connections.map(connection => {
+    if (connection.requester_id === userId) {
+      return connection.recipient_id;
+    } else {
+      return connection.requester_id;
+    }
+  });
 
   // Get groups created by friends
-  const { data: groups } = await supabase
+  const { data: groups, error: groupsError } = await supabase
     .from("groups")
     .select("id, name, description, max_members, created_by")
     .in("created_by", friendIds);
 
-  if (!groups || groups.length === 0) return { groups: [] };
+  if (groupsError) {
+    console.error("Error fetching friend groups:", groupsError);
+    return { groups: [] };
+  }
+
+  if (!groups || groups.length === 0) {
+    return { groups: [] };
+  }
 
   // Get member counts for these groups
   const groupIds = groups.map((g) => g.id);
-  const { data: memberCountsRaw } = await supabase
+  const { data: memberCountsRaw, error: memberCountsError } = await supabase
     .from("group_members")
     .select("group_id")
     .in("group_id", groupIds);
+
+  if (memberCountsError) {
+    console.error("Error fetching member counts:", memberCountsError);
+    return { groups: [] };
+  }
+
   const memberCounts = (memberCountsRaw || []) as { group_id: string }[];
 
   const memberCountMap: Record<string, number> = {};

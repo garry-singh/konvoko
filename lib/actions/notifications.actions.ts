@@ -62,4 +62,42 @@ export async function markNotificationsRead() {
     .update({ is_read: true })
     .eq("user_id", userId)
     .eq("is_read", false);
+}
+
+export async function deleteReadNotifications() {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated" };
+
+  const supabase = createServiceRoleSupabaseClient();
+  const { error } = await supabase
+    .from("notifications")
+    .delete()
+    .eq("user_id", userId)
+    .eq("is_read", true);
+
+  if (error) {
+    console.error("Error deleting read notifications:", error);
+    return { error: error.message };
+  }
+
+  return { success: true };
+}
+
+export async function deleteNotification(notificationId: string) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated" };
+
+  const supabase = createServiceRoleSupabaseClient();
+  const { error } = await supabase
+    .from("notifications")
+    .delete()
+    .eq("id", notificationId)
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("Error deleting notification:", error);
+    return { error: error.message };
+  }
+
+  return { success: true };
 } 
