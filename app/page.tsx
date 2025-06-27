@@ -26,13 +26,16 @@ interface Group {
 }
 
 export default function Home() {
-  const { user } = useUser();
+  const { user, isLoaded: userLoaded } = useUser();
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
     const fetchGroups = async () => {
+      // Only proceed if user authentication state is loaded
+      if (!userLoaded) return;
+
       if (user) {
         try {
           const groupResult = await getAllGroups();
@@ -47,13 +50,14 @@ export default function Home() {
           setHasFetched(true);
         }
       } else {
+        // User is not authenticated
         setIsLoading(false);
         setHasFetched(true);
       }
     };
 
     fetchGroups();
-  }, [user]);
+  }, [user, userLoaded]);
 
   return (
     <>
@@ -81,7 +85,7 @@ export default function Home() {
             </div>
           </div>
 
-          {isLoading ? (
+          {!userLoaded || isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
                 <GroupCardSkeleton key={i} />
