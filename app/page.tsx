@@ -5,7 +5,7 @@ import { getAllGroups } from "@/lib/actions/groups.actions";
 import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import GroupCard from "@/components/GroupCard";
-import GroupListItemSkeleton from "@/components/skeletons/GroupListItemSkeleton";
+import GroupCardSkeleton from "@/components/skeletons/GroupCardSkeleton";
 
 interface Group {
   id: string;
@@ -84,7 +84,7 @@ export default function Home() {
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <GroupListItemSkeleton key={i} />
+                <GroupCardSkeleton key={i} />
               ))}
             </div>
           ) : hasFetched && groups.length === 0 ? (
@@ -95,14 +95,6 @@ export default function Home() {
                   You&apos;re not a member of any groups yet. Create your first
                   group or join an existing one to get started.
                 </p>
-                <div className="flex gap-4 justify-center">
-                  <Button asChild>
-                    <Link href="/create-group">Create Your First Group</Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/join-group">Browse Groups</Link>
-                  </Button>
-                </div>
               </div>
             </div>
           ) : (
