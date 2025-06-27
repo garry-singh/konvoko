@@ -1,6 +1,6 @@
 "use server";
 
-import { createSupabaseClient } from "@/lib/supabase";
+import { createSupabaseClient, createServiceRoleSupabaseClient } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
 import { createNotification } from "@/lib/actions/notifications.actions";
 
@@ -96,29 +96,39 @@ export async function respondToFriendRequest(connectionId: string, accept: boole
 
   // Update friend counts if accepted
   if (accept) {
+    const serviceSupabase = createServiceRoleSupabaseClient();
+
     // Update requester's friend count
-    const { data: requesterProfile } = await supabase
+    const { data: requesterProfile } = await serviceSupabase
       .from("profiles")
       .select("friend_count")
       .eq("id", connection.requester_id)
       .single();
 
-    await supabase
+    const { error: requesterUpdateError } = await serviceSupabase
       .from("profiles")
       .update({ friend_count: (requesterProfile?.friend_count || 0) + 1 })
       .eq("id", connection.requester_id);
 
+    if (requesterUpdateError) {
+      console.error("Error updating requester friend count:", requesterUpdateError);
+    }
+
     // Update recipient's friend count
-    const { data: recipientProfile } = await supabase
+    const { data: recipientProfile } = await serviceSupabase
       .from("profiles")
       .select("friend_count")
       .eq("id", connection.recipient_id)
       .single();
 
-    await supabase
+    const { error: recipientUpdateError } = await serviceSupabase
       .from("profiles")
       .update({ friend_count: (recipientProfile?.friend_count || 0) + 1 })
       .eq("id", connection.recipient_id);
+
+    if (recipientUpdateError) {
+      console.error("Error updating recipient friend count:", recipientUpdateError);
+    }
   }
 
   return { data };
@@ -246,28 +256,38 @@ export async function removeFriend(friendId: string) {
     return { error: deleteError.message };
   }
 
-  // Decrease friend counts
-  const { data: userProfile } = await supabase
+  // Decrease friend counts using service role
+  const serviceSupabase = createServiceRoleSupabaseClient();
+
+  const { data: userProfile } = await serviceSupabase
     .from("profiles")
     .select("friend_count")
     .eq("id", userId)
     .single();
 
-  await supabase
+  const { error: userUpdateError } = await serviceSupabase
     .from("profiles")
     .update({ friend_count: (userProfile?.friend_count || 0) - 1 })
     .eq("id", userId);
 
-  const { data: friendProfile } = await supabase
+  if (userUpdateError) {
+    console.error("Error updating user friend count:", userUpdateError);
+  }
+
+  const { data: friendProfile } = await serviceSupabase
     .from("profiles")
     .select("friend_count")
     .eq("id", friendId)
     .single();
 
-  await supabase
+  const { error: friendUpdateError } = await serviceSupabase
     .from("profiles")
     .update({ friend_count: (friendProfile?.friend_count || 0) - 1 })
     .eq("id", friendId);
+
+  if (friendUpdateError) {
+    console.error("Error updating friend's friend count:", friendUpdateError);
+  }
 
   return { success: true };
 }
