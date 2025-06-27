@@ -10,36 +10,56 @@ export async function getUserResponseFeed(userId: string, limit: number = 20) {
 
   const supabase = createSupabaseClient();
 
-  const { data: responses, error } = await supabase
+  // First, get the responses
+  const { data: responses, error: responsesError } = await supabase
     .from("responses")
-    .select(`
-      *,
-      prompts!inner (
-        id,
-        content,
-        active_date,
-        reveal_date
-      ),
-      groups!inner (
-        id,
-        name
-      ),
-      profiles:user_id (
-        id,
-        full_name,
-        avatar_url
-      )
-    `)
+    .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (error) {
-    console.error("Error fetching user response feed:", error);
-    return { error: error.message };
+  if (responsesError) {
+    console.error("Error fetching responses:", responsesError);
+    return { error: responsesError.message };
   }
 
-  return { responses };
+  if (!responses || responses.length === 0) {
+    return { responses: [] };
+  }
+
+  // Extract unique prompt and group IDs
+  const promptIds = [...new Set(responses.map(r => r.prompt_id))];
+  const groupIds = [...new Set(responses.map(r => r.group_id))];
+
+  // Fetch prompts and groups
+  const [promptsResult, groupsResult] = await Promise.all([
+    supabase.from("prompts").select("id, content, active_date, reveal_date").in("id", promptIds),
+    supabase.from("groups").select("id, name").in("id", groupIds),
+  ]);
+
+  if (promptsResult.error) {
+    console.error("Error fetching prompts:", promptsResult.error);
+    return { error: promptsResult.error.message };
+  }
+
+  if (groupsResult.error) {
+    console.error("Error fetching groups:", groupsResult.error);
+    return { error: groupsResult.error.message };
+  }
+
+  // Combine the data
+  const responsesWithDetails = responses.map(response => {
+    const prompt = promptsResult.data?.find(p => p.id === response.prompt_id);
+    const group = groupsResult.data?.find(g => g.id === response.group_id);
+    
+    return {
+      ...response,
+      prompts: prompt,
+      groups: group,
+    };
+  });
+
+  return { responses: responsesWithDetails };
 }
 
 export async function voteOnResponse(responseId: string) {

@@ -130,24 +130,46 @@ export async function getFriendRequests() {
 
   const supabase = createSupabaseClient();
 
-  const { data: requests, error } = await supabase
+  // First, get all pending friend requests for this user
+  const { data: connections, error: connectionsError } = await supabase
     .from("connections")
-    .select(`
-      *,
-      requester:requester_id (
-        id,
-        full_name,
-        avatar_url
-      )
-    `)
+    .select("*")
     .eq("recipient_id", userId)
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Error fetching friend requests:", error);
-    return { error: error.message };
+  if (connectionsError) {
+    console.error("Error fetching friend request connections:", connectionsError);
+    return { error: connectionsError.message };
   }
+
+  if (!connections || connections.length === 0) {
+    return { requests: [] };
+  }
+
+  // Extract requester IDs from connections
+  const requesterIds = connections.map(connection => connection.requester_id);
+
+  // Fetch requester profiles
+  const { data: requesterProfiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, full_name, avatar_url")
+    .in("id", requesterIds);
+
+  if (profilesError) {
+    console.error("Error fetching requester profiles:", profilesError);
+    return { error: profilesError.message };
+  }
+
+  // Combine connections with requester profiles
+  const requests = connections.map(connection => {
+    const requester = requesterProfiles?.find(profile => profile.id === connection.requester_id);
+    return {
+      id: connection.id,
+      requester: requester || { id: connection.requester_id, full_name: "Unknown User", avatar_url: null },
+      created_at: connection.created_at,
+    };
+  });
 
   return { requests };
 }

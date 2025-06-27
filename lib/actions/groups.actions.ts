@@ -247,17 +247,7 @@ export async function getGroupResponses(groupId: string) {
     // Responses are hidden - only return count and user's own response
     const { data: responses, error } = await supabase
       .from("responses")
-      .select(`
-        id,
-        user_id,
-        content,
-        created_at,
-        profiles:user_id (
-          id,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select("id, user_id, content, created_at")
       .eq("prompt_id", prompt.id)
       .eq("group_id", groupId);
 
@@ -270,8 +260,23 @@ export async function getGroupResponses(groupId: string) {
     const userResponse = responses.find(r => r.user_id === userId);
     const responseCount = responses.length;
 
+    // Fetch profile for user's response if it exists
+    let userResponseWithProfile = null;
+    if (userResponse) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .eq("id", userResponse.user_id)
+        .single();
+      
+      userResponseWithProfile = {
+        ...userResponse,
+        profiles: profile || { id: userResponse.user_id, full_name: "Unknown User", avatar_url: null },
+      };
+    }
+
     return { 
-      responses: userResponse ? [userResponse] : [],
+      responses: userResponseWithProfile ? [userResponseWithProfile] : [],
       responseCount,
       isRevealed: false,
       revealDate: prompt.reveal_date
@@ -280,14 +285,7 @@ export async function getGroupResponses(groupId: string) {
     // Responses are revealed - return all responses
     const { data: responses, error } = await supabase
       .from("responses")
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select("*")
       .eq("prompt_id", prompt.id)
       .eq("group_id", groupId)
       .order("created_at", { ascending: true });
@@ -297,8 +295,40 @@ export async function getGroupResponses(groupId: string) {
       return { error: error.message };
     }
 
+    if (!responses || responses.length === 0) {
+      return { 
+        responses: [], 
+        responseCount: 0,
+        isRevealed: true,
+        revealDate: prompt.reveal_date
+      };
+    }
+
+    // Extract unique user IDs
+    const userIds = [...new Set(responses.map(r => r.user_id))];
+
+    // Fetch profiles for all users
+    const { data: profiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name, avatar_url")
+      .in("id", userIds);
+
+    if (profilesError) {
+      console.error("Error fetching profiles:", profilesError);
+      return { error: profilesError.message };
+    }
+
+    // Combine responses with profiles
+    const responsesWithProfiles = responses.map(response => {
+      const profile = profiles?.find(p => p.id === response.user_id);
+      return {
+        ...response,
+        profiles: profile || { id: response.user_id, full_name: "Unknown User", avatar_url: null },
+      };
+    });
+
     return { 
-      responses, 
+      responses: responsesWithProfiles, 
       responseCount: responses.length,
       isRevealed: true,
       revealDate: prompt.reveal_date
