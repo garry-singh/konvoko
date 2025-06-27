@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import NotificationBadge from "./NotificationBadge";
 
 const navItems = [
   { label: "Friends", href: "/friends" },
@@ -32,9 +33,13 @@ export default function NavItems() {
         <Link
           href={item.href}
           key={item.label}
-          className={cn(isActive(item.href) && "text-primary font-semibold")}
+          className={cn(
+            "relative",
+            isActive(item.href) && "text-primary font-semibold"
+          )}
         >
           {item.label}
+          {item.label === "Notifications" && <NotificationBadge />}
         </Link>
       ))}
     </div>
