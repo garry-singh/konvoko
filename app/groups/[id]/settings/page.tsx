@@ -5,7 +5,7 @@ import {
   getGroupPromptPageData,
 } from "@/lib/actions/groups.actions";
 import { notFound } from "next/navigation";
-import GroupSettingsForm from "@/components/GroupSettingsForm";
+import GroupSettingsForm from "@/components/group-form/GroupSettingsForm";
 import GroupMembersList from "@/components/GroupMembersList";
 import MemberCardSkeleton from "@/components/skeletons/MemberCardSkeleton";
 import DeleteGroupButton from "@/components/DeleteGroupButton";
@@ -24,7 +24,6 @@ interface Group {
 interface Member {
   user_id: string;
   is_admin: boolean;
-  created_at: string;
   profiles: {
     id: string;
     full_name: string;
@@ -156,6 +155,7 @@ export default function GroupSettings({
             groupId={group.id}
             members={members}
             isCreator={isCreator}
+            groupCreatorId={group.created_by}
           />
         </div>
       </div>

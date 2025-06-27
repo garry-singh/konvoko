@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import NotificationBadge from "./NotificationBadge";
+import NotificationBadge from "../NotificationBadge";
+import { useNotifications } from "../providers/NotificationProvider";
 
 const navItems = [
   { label: "Friends", href: "/friends" },
@@ -15,6 +16,7 @@ const navItems = [
 export default function NavItems() {
   const pathname = usePathname();
   const { user } = useUser();
+  const { unreadCount } = useNotifications();
   const isActive = (href: string) => pathname === href;
 
   return (
@@ -39,7 +41,11 @@ export default function NavItems() {
           )}
         >
           {item.label}
-          {item.label === "Notifications" && <NotificationBadge />}
+          {item.label === "Notifications" && (
+            <NotificationBadge count={unreadCount}>
+              {item.label}
+            </NotificationBadge>
+          )}
         </Link>
       ))}
     </div>

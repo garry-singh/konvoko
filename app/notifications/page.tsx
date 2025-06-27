@@ -7,7 +7,7 @@ import {
   deleteReadNotifications,
   deleteNotification,
 } from "@/lib/actions/notifications.actions";
-import { useNotifications } from "@/components/NotificationProvider";
+import { useNotifications } from "@/components/providers/NotificationProvider";
 import NotificationSkeleton from "@/components/skeletons/NotificationSkeleton";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";

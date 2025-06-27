@@ -11,7 +11,6 @@ import {
 interface Member {
   user_id: string;
   is_admin: boolean;
-  created_at: string;
   profiles: {
     id: string;
     full_name: string;
@@ -23,10 +22,12 @@ export default function GroupMembersList({
   groupId,
   members,
   isCreator,
+  groupCreatorId,
 }: {
   groupId: string;
   members: Member[];
   isCreator: boolean;
+  groupCreatorId: string;
 }) {
   const [loadingStates, setLoadingStates] = useState<Record<string, string>>(
     {}
@@ -78,8 +79,7 @@ export default function GroupMembersList({
       <div className="space-y-3">
         {members.map((member) => {
           const isLoading = loadingStates[member.user_id];
-          const isCreatorMember =
-            member.user_id === member.profiles.id && isCreator;
+          const isCreatorMember = member.user_id === groupCreatorId;
 
           return (
             <div
@@ -103,9 +103,6 @@ export default function GroupMembersList({
                         Creator
                       </span>
                     )}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Joined {new Date(member.created_at).toLocaleDateString()}
                   </div>
                 </div>
               </div>

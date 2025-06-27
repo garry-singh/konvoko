@@ -8,7 +8,7 @@ import {
 } from "@/lib/actions/friends.actions";
 import FriendRequestActions from "@/components/FriendRequestActions";
 import FriendCardSkeleton from "@/components/skeletons/FriendCardSkeleton";
-import { useNotifications } from "@/components/NotificationProvider";
+import { useNotifications } from "@/components/providers/NotificationProvider";
 import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";

@@ -1,19 +1,39 @@
 "use client";
 
-import { useNotifications } from "./NotificationProvider";
+import React from "react";
+import { Badge, badgeVariants } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { VariantProps } from "class-variance-authority";
 
-export default function NotificationBadge() {
-  const { unreadCount } = useNotifications();
+export interface NotificationBadgeProps
+  extends React.ComponentProps<"span">,
+    VariantProps<typeof badgeVariants> {
+  count: number;
+  children?: React.ReactNode;
+}
 
-  if (unreadCount === 0) {
+export default function NotificationBadge({
+  count,
+  className,
+  children,
+  ...props
+}: NotificationBadgeProps) {
+  if (count === 0) {
     return null; // Don't show badge if no unread notifications
   }
 
   return (
-    <div className="relative">
-      <span className="absolute -top-8 left-23 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
-        {unreadCount > 99 ? "99+" : unreadCount}
-      </span>
+    <div className="inline-flex relative">
+      {children}
+      <Badge
+        className={cn(
+          "absolute top-0 right-0 rounded-full translate-x-1.5 -translate-y-1.5 px-2",
+          className
+        )}
+        {...props}
+      >
+        {count > 99 ? "99+" : count}
+      </Badge>
     </div>
   );
 }

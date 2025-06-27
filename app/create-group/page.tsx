@@ -1,4 +1,4 @@
-import CreateGroupForm from "@/components/CreateGroupForm";
+import CreateGroupForm from "@/components/group-form/CreateGroupForm";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 

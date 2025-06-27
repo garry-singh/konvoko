@@ -675,9 +675,9 @@ export async function getGroupMembers(groupId: string) {
     // First, get all group members
     const { data: members, error: membersError } = await serviceSupabase
       .from("group_members")
-      .select("user_id, is_admin, created_at")
+      .select("user_id, is_admin")
       .eq("group_id", groupId)
-      .order("created_at", { ascending: true });
+      .order("user_id", { ascending: true });
 
     if (membersError) {
       console.error("Error fetching group members:", membersError);
@@ -712,12 +712,13 @@ export async function getGroupMembers(groupId: string) {
       return {
         user_id: member.user_id,
         is_admin: member.is_admin,
-        created_at: member.created_at,
         profiles: profile || { id: member.user_id, full_name: "Unknown User", avatar_url: null },
       };
     });
 
-    const isAdmin = group.created_by === userId;
+    // Check if current user is admin (either creator or has admin privileges)
+    const currentUserMember = members.find(m => m.user_id === userId);
+    const isAdmin = group.created_by === userId || currentUserMember?.is_admin === true;
 
     return { 
       members: membersWithProfiles, 
