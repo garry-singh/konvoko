@@ -158,40 +158,42 @@ export async function getFriends(userId: string) {
 
   const supabase = createSupabaseClient();
 
-  const { data: friends, error } = await supabase
+  // First, get all accepted connections for this user
+  const { data: connections, error: connectionsError } = await supabase
     .from("connections")
-    .select(`
-      *,
-      friend:requester_id (
-        id,
-        full_name,
-        avatar_url,
-        friend_count
-      ),
-      friend2:recipient_id (
-        id,
-        full_name,
-        avatar_url,
-        friend_count
-      )
-    `)
+    .select("*")
     .or(`and(requester_id.eq.${userId},status.eq.accepted),and(recipient_id.eq.${userId},status.eq.accepted)`);
 
-  if (error) {
-    console.error("Error fetching friends:", error);
-    return { error: error.message };
+  if (connectionsError) {
+    console.error("Error fetching connections:", connectionsError);
+    return { error: connectionsError.message };
   }
 
-  // Transform the data to get friend profiles
-  const friendProfiles = friends.map(connection => {
+  if (!connections || connections.length === 0) {
+    return { friends: [] };
+  }
+
+  // Extract friend IDs from connections
+  const friendIds = connections.map(connection => {
     if (connection.requester_id === userId) {
-      return connection.friend2;
+      return connection.recipient_id;
     } else {
-      return connection.friend;
+      return connection.requester_id;
     }
   });
 
-  return { friends: friendProfiles };
+  // Fetch friend profiles
+  const { data: friendProfiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, full_name, avatar_url, friend_count")
+    .in("id", friendIds);
+
+  if (profilesError) {
+    console.error("Error fetching friend profiles:", profilesError);
+    return { error: profilesError.message };
+  }
+
+  return { friends: friendProfiles || [] };
 }
 
 export async function removeFriend(friendId: string) {

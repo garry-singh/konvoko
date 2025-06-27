@@ -11,7 +11,7 @@ export default function NotificationBadge() {
 
   return (
     <div className="relative">
-      <span className="absolute -top-2 -left-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+      <span className="absolute -top-8 left-24 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
         {unreadCount > 99 ? "99+" : unreadCount}
       </span>
     </div>

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { searchUsers } from "@/lib/actions/user.actions";
 import {
   sendFriendRequest,
@@ -46,22 +46,22 @@ export default function FindFriends() {
   const { refreshCount } = useNotifications();
   const { user } = useUser();
 
-  const fetchFriendRequests = async () => {
+  const fetchFriendRequests = useCallback(async () => {
     const { requests } = await getFriendRequests();
     setFriendRequests(requests || []);
-  };
+  }, []);
 
-  const fetchFriends = async () => {
+  const fetchFriends = useCallback(async () => {
     if (user) {
       const { friends: friendsList } = await getFriends(user.id);
       setFriends(friendsList || []);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchFriendRequests();
     fetchFriends();
-  }, [user]);
+  }, [fetchFriendRequests, fetchFriends]);
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
