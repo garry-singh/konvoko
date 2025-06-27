@@ -7,6 +7,7 @@ import {
   getFriends,
 } from "@/lib/actions/friends.actions";
 import FriendRequestActions from "@/components/FriendRequestActions";
+import FriendCardSkeleton from "@/components/skeletons/FriendCardSkeleton";
 import { useNotifications } from "@/components/NotificationProvider";
 import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
@@ -42,19 +43,25 @@ export default function FindFriends() {
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(false);
+  const [friendsLoading, setFriendsLoading] = useState(true);
+  const [requestsLoading, setRequestsLoading] = useState(true);
   const [sent, setSent] = useState<string[]>([]);
   const { refreshCount } = useNotifications();
   const { user } = useUser();
 
   const fetchFriendRequests = useCallback(async () => {
+    setRequestsLoading(true);
     const { requests } = await getFriendRequests();
     setFriendRequests(requests || []);
+    setRequestsLoading(false);
   }, []);
 
   const fetchFriends = useCallback(async () => {
     if (user) {
+      setFriendsLoading(true);
       const { friends: friendsList } = await getFriends(user.id);
       setFriends(friendsList || []);
+      setFriendsLoading(false);
     }
   }, [user]);
 
@@ -90,7 +97,7 @@ export default function FindFriends() {
       <h1 className="text-2xl font-bold mb-6">Friends</h1>
 
       {/* Enhanced Friend Requests Section */}
-      {friendRequests.length > 0 && (
+      {!requestsLoading && friendRequests.length > 0 && (
         <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
           <div className="flex items-center gap-2 mb-4">
             <span className="text-2xl">👥</span>
@@ -155,9 +162,15 @@ export default function FindFriends() {
       {/* Friends List Section */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold mb-4">
-          Your Friends ({friends.length})
+          Your Friends {!friendsLoading && `(${friends.length})`}
         </h2>
-        {friends.length === 0 ? (
+        {friendsLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <FriendCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : friends.length === 0 ? (
           <div className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
             <div className="text-4xl mb-2">👥</div>
             <p className="text-lg font-medium mb-2">No friends yet</p>

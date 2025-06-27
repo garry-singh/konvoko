@@ -8,6 +8,7 @@ import {
   deleteNotification,
 } from "@/lib/actions/notifications.actions";
 import { useNotifications } from "@/components/NotificationProvider";
+import NotificationSkeleton from "@/components/skeletons/NotificationSkeleton";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -77,7 +78,11 @@ export default function Notifications() {
     return (
       <div className="max-w-lg mx-auto py-8">
         <h1 className="text-2xl font-bold mb-4">Notifications</h1>
-        <div>Loading...</div>
+        <div className="flex flex-col gap-3">
+          {[...Array(5)].map((_, i) => (
+            <NotificationSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }

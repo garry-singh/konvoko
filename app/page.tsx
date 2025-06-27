@@ -1,21 +1,43 @@
+"use client";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { getAllGroups } from "@/lib/actions/groups.actions";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
-import { auth } from "@clerk/nextjs/server";
+import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import GroupListItemSkeleton from "@/components/skeletons/GroupListItemSkeleton";
 
-export default async function Home() {
-  // Only fetch groups if user is signed in
-  const { userId } = await auth();
-  let groups = [];
+interface Group {
+  id: string;
+  name: string;
+  description: string;
+}
 
-  if (userId) {
-    const groupResult = await getAllGroups();
-    if (groupResult.error) {
-      console.error("Error fetching groups:", groupResult.error);
-    }
-    groups = groupResult.data || [];
-  }
+export default function Home() {
+  const { user } = useUser();
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      if (user) {
+        try {
+          const groupResult = await getAllGroups();
+          if (groupResult.error) {
+            console.error("Error fetching groups:", groupResult.error);
+          }
+          setGroups(groupResult.data || []);
+        } catch (error) {
+          console.error("Error fetching groups:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGroups();
+  }, [user]);
 
   return (
     <>
@@ -39,10 +61,17 @@ export default async function Home() {
           <Button asChild>
             <Link href="/join-group">Join Group</Link>
           </Button>
-          {groups.length === 0 ? (
-            <p>You are not a member of any groups yet.</p>
+
+          {isLoading ? (
+            <div className="mt-8 space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <GroupListItemSkeleton key={i} />
+              ))}
+            </div>
+          ) : groups.length === 0 ? (
+            <p className="mt-8">You are not a member of any groups yet.</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="mt-8 space-y-2">
               {groups.map((group) => (
                 <li key={group.id}>
                   <Link
