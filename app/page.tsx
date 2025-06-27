@@ -4,12 +4,17 @@ import { Button } from "@/components/ui/button";
 import { getAllGroups } from "@/lib/actions/groups.actions";
 import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import GroupCard from "@/components/GroupCard";
 import GroupListItemSkeleton from "@/components/skeletons/GroupListItemSkeleton";
 
 interface Group {
   id: string;
   name: string;
   description: string;
+  type: "public" | "private";
+  member_count?: number;
+  max_members?: number;
+  creator_username?: string;
 }
 
 export default function Home() {
@@ -52,37 +57,49 @@ export default function Home() {
       </SignedOut>
 
       <SignedIn>
-        {/* Your dashboard UI (group list, latest prompt, etc) */}
-        <main className="text-center py-20">
-          <h1>Dashboard</h1>
-          <Button asChild>
-            <Link href="/create-group">Create Group</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/join-group">Join Group</Link>
-          </Button>
+        <main className="container mx-auto px-4 py-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold mb-4">Your Groups</h1>
+            <div className="flex gap-4 justify-center">
+              <Button asChild>
+                <Link href="/create-group">Create Group</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/join-group">Join Group</Link>
+              </Button>
+            </div>
+          </div>
 
           {isLoading ? (
-            <div className="mt-8 space-y-2">
-              {[...Array(3)].map((_, i) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
                 <GroupListItemSkeleton key={i} />
               ))}
             </div>
           ) : groups.length === 0 ? (
-            <p className="mt-8">You are not a member of any groups yet.</p>
+            <div className="text-center py-12">
+              <div className="max-w-md mx-auto">
+                <h3 className="text-xl font-semibold mb-2">No groups yet</h3>
+                <p className="text-muted-foreground mb-6">
+                  You&apos;re not a member of any groups yet. Create your first
+                  group or join an existing one to get started.
+                </p>
+                <div className="flex gap-4 justify-center">
+                  <Button asChild>
+                    <Link href="/create-group">Create Your First Group</Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/join-group">Browse Groups</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
           ) : (
-            <ul className="mt-8 space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {groups.map((group) => (
-                <li key={group.id}>
-                  <Link
-                    href={`/groups/${group.id}`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    {group.name}
-                  </Link>
-                </li>
+                <GroupCard key={group.id} group={group} />
               ))}
-            </ul>
+            </div>
           )}
         </main>
       </SignedIn>

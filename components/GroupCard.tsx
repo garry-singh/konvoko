@@ -1,66 +1,74 @@
 "use client";
-import { Button } from "@/components/ui/button";
-import { joinGroup } from "@/lib/actions/groups.actions";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Users, MessageCircle } from "lucide-react";
 
-export default function GroupCard({
-  group,
-}: {
-  group: {
-    id: string;
-    name: string;
-    description: string;
-    member_count: number;
-    max_members: number;
-    username: string;
-  };
-}) {
-  const [isJoining, setIsJoining] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+interface Group {
+  id: string;
+  name: string;
+  description: string;
+  type: "public" | "private";
+  member_count?: number;
+  max_members?: number;
+  creator_username?: string;
+}
 
-  const handleJoin = async () => {
-    setIsJoining(true);
-    setError(null);
+interface GroupCardProps {
+  group: Group;
+}
 
-    try {
-      const result = await joinGroup(group.id);
-
-      if (result.error) {
-        setError(result.error);
-      } else {
-        // Redirect to the group page on successful join
-        router.push(`/groups/${group.id}`);
-      }
-    } catch (err) {
-      setError("Failed to join group. Please try again.");
-      console.error("Error joining group:", err);
-    } finally {
-      setIsJoining(false);
-    }
-  };
-
-  const isFull = group.member_count >= group.max_members;
-
+export default function GroupCard({ group }: GroupCardProps) {
   return (
-    <div className="min-w-[250px] bg-white rounded shadow p-4 flex flex-col">
-      <h3 className="font-bold">{group.name}</h3>
-      <p className="text-sm text-gray-500 mb-2">{group.description}</p>
-      <p className="text-xs text-gray-400 mb-2">Created by {group.username}</p>
-      <div className="text-xs text-gray-400 mb-2">
-        {group.member_count} / {group.max_members} members
-      </div>
+    <Link href={`/groups/${group.id}`}>
+      <Card className="h-full transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-pointer group">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <CardTitle className="text-lg font-semibold group-hover:text-blue-600 transition-colors">
+                {group.name}
+              </CardTitle>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge
+                  variant={group.type === "public" ? "default" : "secondary"}
+                >
+                  {group.type === "public" ? "Public" : "Private"}
+                </Badge>
+                {group.creator_username && (
+                  <span className="text-sm text-muted-foreground">
+                    by {group.creator_username}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <CardDescription className="text-sm line-clamp-2 mb-4">
+            {group.description || "No description available"}
+          </CardDescription>
 
-      {error && <div className="text-red-500 text-xs mb-2">{error}</div>}
-
-      <Button
-        onClick={handleJoin}
-        disabled={isJoining || isFull}
-        className={isFull ? "bg-gray-400 cursor-not-allowed" : ""}
-      >
-        {isJoining ? "Joining..." : isFull ? "Full" : "Join"}
-      </Button>
-    </div>
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Users className="h-4 w-4" />
+              <span>
+                {group.member_count || 0}
+                {group.max_members && ` / ${group.max_members}`}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <MessageCircle className="h-4 w-4" />
+              <span>Active</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

@@ -11,9 +11,10 @@ interface Group {
   id: string;
   name: string;
   description: string;
+  type: "public" | "private";
   member_count: number;
   max_members: number;
-  username: string;
+  creator_username: string;
 }
 
 export default function JoinGroup() {

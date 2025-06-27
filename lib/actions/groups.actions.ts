@@ -20,6 +20,19 @@ export const createGroup = async (
 
         const supabase = createSupabaseClient();
 
+        // Fetch creator's username/full_name
+        const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("username, full_name")
+            .eq("id", userId)
+            .single();
+
+        if (profileError || !profile) {
+            return { error: "Could not fetch user profile" };
+        }
+
+        const creatorUsername = profile.username || profile.full_name || "Unknown";
+
         // Create the group
         const { data: group, error: groupError } = await supabase.from('groups').insert({
             created_by: userId.toString(),
@@ -28,6 +41,7 @@ export const createGroup = async (
             type: groupType,
             min_members: groupMinMembers,
             max_members: groupMaxMembers,
+            creator_username: creatorUsername,
         }).select().single();
 
         if (groupError) {
@@ -74,7 +88,7 @@ export const getAllGroups = async () => {
   const memberGroupIds = (memberGroups || []).map(g => g.group_id);
 
   // Get all groups where user is creator or member
-  const { data, error } = await serviceSupabase
+  const { data: groups, error } = await serviceSupabase
     .from('groups')
     .select('*')
     .or(`created_by.eq.${userId},id.in.(${memberGroupIds.join(',')})`);
@@ -84,7 +98,23 @@ export const getAllGroups = async () => {
     return { error: error.message };
   }
 
-  return { data: data || [] };
+  // Get member counts for each group
+  const groupsWithMemberCounts = await Promise.all(
+    (groups || []).map(async (group) => {
+      const { count: memberCount } = await serviceSupabase
+        .from('group_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', group.id);
+
+      return {
+        ...group,
+        member_count: memberCount || 0,
+        // creator_username is already available from the groups table
+      };
+    })
+  );
+
+  return { data: groupsWithMemberCounts };
 };
 
 export async function getActivePrompt() {
@@ -422,7 +452,7 @@ export async function getFriendsGroups() {
   // Get groups created by friends using service role to bypass RLS
   const { data: groups, error: groupsError } = await serviceSupabase
     .from("groups")
-    .select("id, name, description, max_members, created_by")
+    .select("id, name, description, max_members, created_by, type, creator_username")
     .in("created_by", friendIds);
 
   if (groupsError) {
@@ -449,18 +479,6 @@ export async function getFriendsGroups() {
     return { groups: [] };
   }
 
-  // Get creator profiles for all groups
-  const creatorIds = availableGroups.map(g => g.created_by);
-  const { data: creatorProfiles, error: creatorProfilesError } = await serviceSupabase
-    .from("profiles")
-    .select("id, full_name, username")
-    .in("id", creatorIds);
-
-  if (creatorProfilesError) {
-    console.error("Error fetching creator profiles:", creatorProfilesError);
-    return { groups: [] };
-  }
-
   // Get member counts for these groups using service role
   const groupIds = availableGroups.map((g) => g.id);
   const { data: memberCountsRaw, error: memberCountsError } = await serviceSupabase
@@ -481,11 +499,10 @@ export async function getFriendsGroups() {
   });
 
   const groupsWithCount = availableGroups.map((g) => {
-    const creator = creatorProfiles?.find(p => p.id === g.created_by);
     return {
       ...g,
       member_count: memberCountMap[g.id] || 0,
-      username: creator?.username || creator?.full_name || "Unknown User",
+      // creator_username is already available from the groups table
     };
   });
 
@@ -501,7 +518,7 @@ export async function getAvailablePublicGroups() {
   // Get all public groups using service role to bypass RLS
   const { data: groups, error: groupsError } = await serviceSupabase
     .from("groups")
-    .select("id, name, description, max_members, created_by")
+    .select("id, name, description, max_members, created_by, creator_username")
     .eq("type", "public");
 
   if (groupsError) {
@@ -528,18 +545,6 @@ export async function getAvailablePublicGroups() {
     return { groups: [] };
   }
 
-  // Get creator profiles for all groups
-  const creatorIds = availableGroups.map(g => g.created_by);
-  const { data: creatorProfiles, error: creatorProfilesError } = await serviceSupabase
-    .from("profiles")
-    .select("id, full_name, username")
-    .in("id", creatorIds);
-
-  if (creatorProfilesError) {
-    console.error("Error fetching creator profiles:", creatorProfilesError);
-    return { groups: [] };
-  }
-
   // Get member counts for these groups using service role
   const groupIds = availableGroups.map((g) => g.id);
   const { data: memberCountsRaw, error: memberCountsError } = await serviceSupabase
@@ -560,11 +565,11 @@ export async function getAvailablePublicGroups() {
   });
 
   const groupsWithCount = availableGroups.map((g) => {
-    const creator = creatorProfiles?.find(p => p.id === g.created_by);
     return {
       ...g,
+      type: "public" as const, // These are all public groups
       member_count: memberCountMap[g.id] || 0,
-      username: creator?.username || creator?.full_name || "Unknown User",
+      // creator_username is already available from the groups table
     };
   });
 
