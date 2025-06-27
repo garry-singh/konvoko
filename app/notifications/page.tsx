@@ -116,6 +116,7 @@ export default function Notifications() {
                   {n.type === "vote_received" && "❤️"}
                   {n.type === "friend_request_accepted" && "✅"}
                   {n.type === "friend_request_declined" && "❌"}
+                  {n.type === "member_joined" && "👋"}
                 </span>
                 <div className="flex-1">
                   {n.type === "friend_request" && (
@@ -182,6 +183,20 @@ export default function Notifications() {
                   {n.type === "vote_received" && (
                     <div>
                       <span>Your response received a new vote!</span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {n.type === "member_joined" && (
+                    <div>
+                      <span>
+                        <b>{(n.data?.member_name as string) || "Someone"}</b>{" "}
+                        joined your group{" "}
+                        <b>
+                          {(n.data?.group_name as string) || "Unknown Group"}
+                        </b>
+                      </span>
                       <div className="text-xs text-gray-500 mt-1">
                         {new Date(n.created_at).toLocaleString()}
                       </div>
@@ -232,6 +247,7 @@ export default function Notifications() {
                   {n.type === "vote_received" && "❤️"}
                   {n.type === "friend_request_accepted" && "✅"}
                   {n.type === "friend_request_declined" && "❌"}
+                  {n.type === "member_joined" && "👋"}
                 </span>
                 <div className="flex-1">
                   {n.type === "friend_request" && (
@@ -298,6 +314,20 @@ export default function Notifications() {
                   {n.type === "vote_received" && (
                     <div>
                       <span>Your response received a new vote!</span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {n.type === "member_joined" && (
+                    <div>
+                      <span>
+                        <b>{(n.data?.member_name as string) || "Someone"}</b>{" "}
+                        joined your group{" "}
+                        <b>
+                          {(n.data?.group_name as string) || "Unknown Group"}
+                        </b>
+                      </span>
                       <div className="text-xs text-gray-500 mt-1">
                         {new Date(n.created_at).toLocaleString()}
                       </div>

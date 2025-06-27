@@ -2,6 +2,8 @@
 
 import { createSupabaseClient } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
+import { createServiceRoleSupabaseClient } from "@/lib/supabase";
+import { createNotification } from "@/lib/actions/notifications.actions";
 
 export const createGroup = async (
     groupName: string, 
@@ -367,6 +369,7 @@ export async function getFriendsGroups() {
   if (!userId) return { groups: [] };
 
   const supabase = createSupabaseClient();
+  const serviceSupabase = createServiceRoleSupabaseClient();
 
   // First, get all accepted connections for this user
   const { data: connections, error: connectionsError } = await supabase
@@ -392,8 +395,8 @@ export async function getFriendsGroups() {
     }
   });
 
-  // Get groups created by friends
-  const { data: groups, error: groupsError } = await supabase
+  // Get groups created by friends using service role to bypass RLS
+  const { data: groups, error: groupsError } = await serviceSupabase
     .from("groups")
     .select("id, name, description, max_members, created_by")
     .in("created_by", friendIds);
@@ -407,9 +410,9 @@ export async function getFriendsGroups() {
     return { groups: [] };
   }
 
-  // Get member counts for these groups
+  // Get member counts for these groups using service role
   const groupIds = groups.map((g) => g.id);
-  const { data: memberCountsRaw, error: memberCountsError } = await supabase
+  const { data: memberCountsRaw, error: memberCountsError } = await serviceSupabase
     .from("group_members")
     .select("group_id")
     .in("group_id", groupIds);
@@ -479,4 +482,81 @@ export async function getAvailablePublicGroups() {
     .filter((g) => g.member_count < g.max_members);
 
   return { groups: groupsWithCount };
+}
+
+export async function joinGroup(groupId: string) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated" };
+
+  const supabase = createSupabaseClient();
+  const serviceSupabase = createServiceRoleSupabaseClient();
+
+  // Check if user is already a member
+  const { data: existingMember } = await supabase
+    .from("group_members")
+    .select("*")
+    .eq("group_id", groupId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existingMember) {
+    return { error: "Already a member of this group" };
+  }
+
+  // Get group details to check if it's full and get the admin
+  const { data: group, error: groupError } = await serviceSupabase
+    .from("groups")
+    .select("id, name, max_members, created_by")
+    .eq("id", groupId)
+    .single();
+
+  if (groupError || !group) {
+    return { error: "Group not found" };
+  }
+
+  // Check if group is full
+  const { data: memberCount, error: countError } = await serviceSupabase
+    .from("group_members")
+    .select("id", { count: "exact", head: true })
+    .eq("group_id", groupId);
+
+  if (countError) {
+    console.error("Error checking member count:", countError);
+    return { error: "Error checking group capacity" };
+  }
+
+  if ((memberCount?.length || 0) >= group.max_members) {
+    return { error: "Group is full" };
+  }
+
+  // Add user to group
+  const { error: joinError } = await supabase
+    .from("group_members")
+    .insert({
+      group_id: groupId,
+      user_id: userId,
+      is_admin: false,
+    });
+
+  if (joinError) {
+    console.error("Error joining group:", joinError);
+    return { error: joinError.message };
+  }
+
+  // Get user's profile for notification
+  const { data: userProfile } = await serviceSupabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .single();
+
+  // Notify the group admin
+  await createNotification(group.created_by, "member_joined", {
+    group_id: groupId,
+    group_name: group.name,
+    member_id: userId,
+    member_name: userProfile?.full_name || "Someone",
+  });
+
+  return { success: true };
 }
