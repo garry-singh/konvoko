@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import { UserButton } from "@clerk/nextjs";
+import { Authenticated, Unauthenticated } from "convex/react";
 import {
   Sidebar,
   SidebarContent,
@@ -61,7 +62,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </Link>
       </SidebarHeader>
       <SidebarContent className="flex items-center group-data-[collapsible=icon]:items-center">
-        <SignedIn>
+        <Authenticated>
           {navItems.map((item) => (
             <Link
               href={item.url}
@@ -77,8 +78,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </SidebarMenuButton>
             </Link>
           ))}
-        </SignedIn>
-        <SignedOut>
+        </Authenticated>
+        <Unauthenticated>
           <Link
             href="/sign-in"
             className="w-full flex justify-center group-data-[collapsible=icon]:justify-center"
@@ -103,13 +104,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               Sign Up
             </SidebarMenuButton>
           </Link>
-        </SignedOut>
+        </Unauthenticated>
       </SidebarContent>
       <SidebarFooter className="flex items-center justify-center group-data-[collapsible=icon]:justify-center">
         <ModeToggle />
-        <SignedIn>
+        <Authenticated>
           <UserButton />
-        </SignedIn>
+        </Authenticated>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

@@ -1,15 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
+import { Authenticated, Unauthenticated } from "convex/react";
 import Link from "next/link";
 
 export default function Home() {
-  const { user, isLoaded: userLoaded } = useUser();
-
   return (
     <>
-      <SignedOut>
+      <Unauthenticated>
         <section className="text-center py-20 px-4">
           <h1 className="text-4xl font-bold">Welcome to Konvoko</h1>
           <p className="mt-4 text-lg">
@@ -23,18 +21,18 @@ export default function Home() {
             </Link>
           </div>
         </section>
-      </SignedOut>
+      </Unauthenticated>
 
-      <SignedIn>
+      <Authenticated>
         <main className="container mx-auto px-4 py-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-4">Your Feed</h1>
             <div className="flex gap-4 justify-center">
-              {user && userLoaded && <p>Welcome, {user.fullName}</p>}
+              <p>Welcome to your feed!</p>
             </div>
           </div>
         </main>
-      </SignedIn>
+      </Authenticated>
     </>
   );
 }
