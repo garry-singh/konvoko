@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/nav/Navbar";
+import { AppSidebar } from "@/components/nav/Sidebar";
 import { NotificationProvider } from "@/components/providers/NotificationProvider";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import BreadcrumbHeader from "@/components/nav/BreadcrumbHeader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,8 +34,15 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
           <NotificationProvider>
-            <Navbar />
-            {children}
+            <SidebarProvider>
+              <div className="flex min-h-screen w-full">
+                <AppSidebar />
+                <main className="flex-1">
+                  <BreadcrumbHeader />
+                  {children}
+                </main>
+              </div>
+            </SidebarProvider>
           </NotificationProvider>
         </body>
       </html>
