@@ -12,13 +12,19 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { CreditCard, User, Bell } from "lucide-react";
+import { CreditCard, User, Bell, UserPlus, Brain } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const navItems = [
   {
     title: "Friends",
     url: "/friends",
     icon: User,
+  },
+  {
+    title: "Mind Palace",
+    url: "/mind-palace",
+    icon: Brain,
   },
   {
     title: "Pricing",
@@ -29,6 +35,7 @@ const navItems = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar();
+  const isMobile = useIsMobile();
   const isCollapsed = state === "collapsed";
 
   return (
@@ -36,7 +43,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader className="flex items-center justify-center group-data-[collapsible=icon]:justify-center">
         <Link href="/" className="flex items-center justify-center">
           <span className="font-bold text-lg group-data-[collapsible=icon]:mx-auto">
-            {isCollapsed ? "K" : "Konvoko"}
+            {isMobile ? "Konvoko" : isCollapsed ? "K" : "Konvoko"}
           </span>
         </Link>
       </SidebarHeader>
@@ -81,7 +88,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             className="w-full flex justify-center group-data-[collapsible=icon]:justify-center"
           >
             <SidebarMenuButton className="group-data-[collapsible=icon]:mx-auto">
-              <User />
+              <UserPlus />
               Sign Up
             </SidebarMenuButton>
           </Link>

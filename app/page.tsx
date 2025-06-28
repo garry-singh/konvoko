@@ -1,113 +1,38 @@
 "use client";
-import { useState, useEffect } from "react";
+
 import { Button } from "@/components/ui/button";
-import { getAllGroups } from "@/lib/actions/groups.actions";
 import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import GroupCard from "@/components/GroupCard";
-import GroupCardSkeleton from "@/components/skeletons/GroupCardSkeleton";
-
-interface Group {
-  id: string;
-  name: string;
-  description: string;
-  type: "public" | "private";
-  member_count?: number;
-  max_members?: number;
-  creator_username?: string;
-  members?: {
-    user_id: string;
-    profiles: {
-      id: string;
-      full_name: string;
-      avatar_url: string | null;
-    };
-  }[];
-}
 
 export default function Home() {
   const { user, isLoaded: userLoaded } = useUser();
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasFetched, setHasFetched] = useState(false);
-
-  useEffect(() => {
-    const fetchGroups = async () => {
-      // Only proceed if user authentication state is loaded
-      if (!userLoaded) return;
-
-      if (user) {
-        try {
-          const groupResult = await getAllGroups();
-          if (groupResult.error) {
-            console.error("Error fetching groups:", groupResult.error);
-          }
-          setGroups(groupResult.data || []);
-        } catch (error) {
-          console.error("Error fetching groups:", error);
-        } finally {
-          setIsLoading(false);
-          setHasFetched(true);
-        }
-      } else {
-        // User is not authenticated
-        setIsLoading(false);
-        setHasFetched(true);
-      }
-    };
-
-    fetchGroups();
-  }, [user, userLoaded]);
 
   return (
     <>
       <SignedOut>
-        <section className="text-center py-20">
+        <section className="text-center py-20 px-4">
           <h1 className="text-4xl font-bold">Welcome to Konvoko</h1>
           <p className="mt-4 text-lg">
-            Reflect, connect, and grow — one prompt at a time.
+            Konvoko is a social memory app to capture, organize, and search your
+            thoughts, combining Twitter style posting with a personal mind
+            palace.
           </p>
-          <div className="mt-8">{/* CTA Buttons */}</div>
+          <div className="mt-8">
+            <Link href="/sign-in">
+              <Button>Get Started</Button>
+            </Link>
+          </div>
         </section>
       </SignedOut>
 
       <SignedIn>
         <main className="container mx-auto px-4 py-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-4">Your Groups</h1>
+            <h1 className="text-3xl font-bold mb-4">Your Feed</h1>
             <div className="flex gap-4 justify-center">
-              <Button asChild>
-                <Link href="/create-group">Create Group</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/join-group">Join Group</Link>
-              </Button>
+              {user && userLoaded && <p>Welcome, {user.fullName}</p>}
             </div>
           </div>
-
-          {!userLoaded || isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <GroupCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : hasFetched && groups.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="max-w-md mx-auto">
-                <h3 className="text-xl font-semibold mb-2">No groups yet</h3>
-                <p className="text-muted-foreground mb-6">
-                  You&apos;re not a member of any groups yet. Create your first
-                  group or join an existing one to get started.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {groups.map((group) => (
-                <GroupCard key={group.id} group={group} />
-              ))}
-            </div>
-          )}
         </main>
       </SignedIn>
     </>

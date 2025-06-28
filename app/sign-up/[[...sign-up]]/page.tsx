@@ -2,8 +2,8 @@ import { SignUp } from "@clerk/nextjs";
 
 export default function SignUpPage() {
   return (
-    <div className="flex items-center justify-center lg:pt-24">
-      <div className="w-full max-w-md">
+    <div className="flex items-center justify-center lg:pt-14">
+      <div className="flex justify-center w-full max-w-md">
         <SignUp
           appearance={{
             elements: {

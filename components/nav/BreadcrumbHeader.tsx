@@ -20,11 +20,10 @@ const breadcrumbMap: Record<string, string> = {
   "/friends": "Friends",
   "/notifications": "Notifications",
   "/subscription": "Subscription",
-  "/create-group": "Create Group",
-  "/join-group": "Join Group",
   "/profile": "Profile",
-  "/groups": "Groups",
-  "/settings": "Settings",
+  "/sign-in": "Sign In",
+  "/sign-up": "Sign Up",
+  "/mind-palace": "Mind Palace",
 };
 
 // Helper function to generate breadcrumb items from pathname
@@ -40,46 +39,17 @@ function generateBreadcrumbs(pathname: string) {
 
   // Handle specific route patterns
   if (segments[0] === "profile" && segments.length === 2) {
-    // /profile/[id] -> Home > Profile
     breadcrumbs.push({
       label: "Profile",
       href: pathname,
       isCurrent: true,
     });
-  } else if (segments[0] === "groups" && segments.length === 2) {
-    // /groups/[id] -> Home > Group
-    breadcrumbs.push({
-      label: "Group",
-      href: pathname,
-      isCurrent: true,
-    });
-  } else if (
-    segments[0] === "groups" &&
-    segments.length === 3 &&
-    segments[2] === "settings"
-  ) {
-    // /groups/[id]/settings -> Home > Group > Settings
-    const groupPath = `/${segments[0]}/${segments[1]}`;
-    breadcrumbs.push(
-      {
-        label: "Group",
-        href: groupPath,
-        isCurrent: false,
-      },
-      {
-        label: "Settings",
-        href: pathname,
-        isCurrent: true,
-      }
-    );
   } else {
-    // Handle other routes using the breadcrumb map
     let currentPath = "";
     segments.forEach((segment, index) => {
       currentPath += `/${segment}`;
       const isLast = index === segments.length - 1;
       const label = breadcrumbMap[currentPath] || segment;
-
       breadcrumbs.push({
         label,
         href: currentPath,

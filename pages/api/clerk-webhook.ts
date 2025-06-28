@@ -1,15 +1,84 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import type { Readable } from "stream";
 import { Webhook } from "svix";
-import { createClient } from "@supabase/supabase-js";
-
-// Supabase client (using service role)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET!;
+
+// Svix webhook IP ranges (as of 2025)
+const SVIX_IP_RANGES = [
+  {
+    "us": [
+      "44.228.126.217",
+      "50.112.21.217",
+      "52.24.126.164",
+      "54.148.139.208",
+      "2600:1f24:64:8000::/56"
+    ],
+    "us-east": [
+      "54.164.207.221",
+      "54.90.7.123",
+      "2600:1f28:37:4000::/56"
+    ],
+    "eu": [
+      "52.215.16.239",
+      "54.216.8.72",
+      "63.33.109.123",
+      "2a05:d028:17:8000::/56"
+    ],
+    "in": [
+      "13.126.41.108",
+      "15.207.218.84",
+      "65.2.133.31"
+    ],
+    "au": [ 
+      "13.239.204.236",
+      "54.66.246.217",
+      "54.252.65.96",
+      "2406:da2c:13:4000::/56"
+    ],
+    "ca": [ 
+      "52.60.44.49",
+      "3.98.68.230",
+      "3.96.105.27",
+      "2600:1f21:1c:4000::/56"
+    ]
+  }
+];
+
+// Flatten the IP ranges for easier checking
+const FLATTENED_SVIX_IPS = Object.values(SVIX_IP_RANGES[0]).flat();
+
+// Helper function to check if IP is in Svix ranges
+function isSvixIP(ip: string): boolean {
+  // Remove port if present
+  const cleanIP = ip.split(':')[0];
+  
+  // Check against known Svix IPs
+  return FLATTENED_SVIX_IPS.includes(cleanIP);
+}
+
+// Helper function to get client IP
+function getClientIP(req: NextApiRequest): string {
+  // Check various headers for the real IP
+  const forwarded = req.headers['x-forwarded-for'];
+  const realIP = req.headers['x-real-ip'];
+  const cfConnectingIP = req.headers['cf-connecting-ip'];
+  
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  
+  if (typeof realIP === 'string') {
+    return realIP;
+  }
+  
+  if (typeof cfConnectingIP === 'string') {
+    return cfConnectingIP;
+  }
+  
+  // Fallback to connection remote address
+  return req.socket.remoteAddress || 'unknown';
+}
 
 export const config = {
   api: {
@@ -46,6 +115,17 @@ type ClerkWebhookEvent =
       data: { id: string };
     };
 
+// TODO: Replace with Convex functions when backend is migrated
+async function upsertUserProfile(user: ClerkUserObject) {
+  console.log("TODO: Implement user profile upsert with Convex for user:", user.id);
+  // This will be replaced with Convex mutation
+}
+
+async function deleteUserProfile(userId: string) {
+  console.log("TODO: Implement user profile deletion with Convex for user:", userId);
+  // This will be replaced with Convex mutation
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -54,6 +134,15 @@ export default async function handler(
   
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
+  }
+
+  // Validate IP address
+  const clientIP = getClientIP(req);
+  console.log("Client IP:", clientIP);
+  
+  if (!isSvixIP(clientIP)) {
+    console.error("Request rejected: IP not in Svix range:", clientIP);
+    return res.status(403).json({ error: "Forbidden: Invalid IP address" });
   }
 
   const svixId = req.headers["svix-id"] as string;
@@ -89,37 +178,25 @@ export default async function handler(
 
   if (event.type === "user.created" || event.type === "user.updated") {
     const user = event.data;
-    const email = user.email_addresses?.[0]?.email_address ?? null;
+    console.log("Processing user event:", { userId: user.id, eventType: event.type });
 
-    console.log("Processing user event:", { userId: user.id, email, eventType: event.type });
-
-    const { error } = await supabase.from("profiles").upsert({
-      id: user.id,
-      email,
-      username: user.username ?? null,
-      avatar_url: user.image_url ?? null,
-      first_name: user.first_name ?? null,
-      last_name: user.last_name ?? null,
-      full_name: [user.first_name, user.last_name].filter(Boolean).join(" "),
-    });
-
-    if (error) {
-      console.error("Supabase upsert error:", error);
+    try {
+      await upsertUserProfile(user);
+      console.log("User profile upserted successfully");
+    } catch (error) {
+      console.error("Error upserting user profile:", error);
       return res.status(500).json({ error: "Database error" });
     }
-
-    console.log("User profile upserted successfully");
   } else if (event.type === "user.deleted") {
     console.log("Processing user deletion:", event.data.id);
     
-    const { error } = await supabase.from("profiles").delete().eq("id", event.data.id);
-    
-    if (error) {
-      console.error("Supabase delete error:", error);
+    try {
+      await deleteUserProfile(event.data.id);
+      console.log("User profile deleted successfully");
+    } catch (error) {
+      console.error("Error deleting user profile:", error);
       return res.status(500).json({ error: "Database error" });
     }
-
-    console.log("User profile deleted successfully");
   } else {
     console.warn("Unhandled event type:", event.type);
   }

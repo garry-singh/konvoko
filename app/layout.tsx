@@ -3,7 +3,6 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppSidebar } from "@/components/nav/Sidebar";
-import { NotificationProvider } from "@/components/providers/NotificationProvider";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import BreadcrumbHeader from "@/components/nav/BreadcrumbHeader";
 
@@ -19,7 +18,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Konvoko",
-  description: "Add a description here",
+  description:
+    "Konvoko is a social memory app to capture, organize, and search your thoughts, combining Twitter style posting with a personal mind palace.",
 };
 
 export default function RootLayout({
@@ -33,17 +33,15 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
-          <NotificationProvider>
-            <SidebarProvider>
-              <div className="flex min-h-screen w-full">
-                <AppSidebar />
-                <main className="flex-1">
-                  <BreadcrumbHeader />
-                  {children}
-                </main>
-              </div>
-            </SidebarProvider>
-          </NotificationProvider>
+          <SidebarProvider>
+            <div className="flex min-h-screen w-full">
+              <AppSidebar />
+              <main className="flex-1">
+                <BreadcrumbHeader />
+                {children}
+              </main>
+            </div>
+          </SidebarProvider>
         </body>
       </html>
     </ClerkProvider>
