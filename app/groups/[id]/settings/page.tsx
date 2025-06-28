@@ -150,7 +150,7 @@ export default function GroupSettings({
 
         {/* Member Management */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4">Member Management</h2>
+          <h2 className="text-xl font-semibold mb-4">Manage Members</h2>
           <GroupMembersList
             groupId={group.id}
             members={members}
@@ -167,7 +167,7 @@ export default function GroupSettings({
             Danger Zone
           </h2>
           <p className="text-red-700 mb-4">
-            These actions cannot be undone. Please be careful.
+            This action cannot be undone. Please be sure before proceeding.
           </p>
           <DeleteGroupButton groupId={group.id} groupName={group.name} />
         </div>

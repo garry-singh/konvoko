@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   removeMember,
   promoteToAdmin,
@@ -68,6 +69,16 @@ export default function GroupMembersList({
     }
   };
 
+  // Get initials for avatar fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <div className="space-y-4">
       {error && (
@@ -84,22 +95,30 @@ export default function GroupMembersList({
           return (
             <div
               key={member.user_id}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
             >
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                  {member.profiles.full_name?.charAt(0) || "?"}
-                </div>
-                <div>
+              <div className="flex items-center space-x-4">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage
+                    src={member.profiles.avatar_url || undefined}
+                    alt={member.profiles.full_name}
+                  />
+                  <AvatarFallback>
+                    {getInitials(member.profiles.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col space-y-1">
                   <div className="font-medium">
                     {member.profiles.full_name || "Unknown User"}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     {member.is_admin && (
-                      <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                         Admin
                       </span>
                     )}
                     {isCreatorMember && (
-                      <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                      <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
                         Creator
                       </span>
                     )}

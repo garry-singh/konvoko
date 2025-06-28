@@ -9,7 +9,6 @@ import { useNotifications } from "../providers/NotificationProvider";
 
 const navItems = [
   { label: "Friends", href: "/friends" },
-  { label: "Notifications", href: "/notifications" },
   { label: "Pricing", href: "/subscription" },
 ];
 
@@ -41,13 +40,19 @@ export default function NavItems() {
           )}
         >
           {item.label}
-          {item.label === "Notifications" && (
-            <NotificationBadge count={unreadCount}>
-              {item.label}
-            </NotificationBadge>
-          )}
         </Link>
       ))}
+
+      {/* Notifications link with badge */}
+      <Link
+        href="/notifications"
+        className={cn(
+          "relative",
+          isActive("/notifications") && "text-primary font-semibold"
+        )}
+      >
+        <NotificationBadge count={unreadCount}>Notifications</NotificationBadge>
+      </Link>
     </div>
   );
 }

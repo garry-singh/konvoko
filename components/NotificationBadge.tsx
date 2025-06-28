@@ -18,22 +18,21 @@ export default function NotificationBadge({
   children,
   ...props
 }: NotificationBadgeProps) {
-  if (count === 0) {
-    return null; // Don't show badge if no unread notifications
-  }
-
   return (
     <div className="inline-flex relative">
       {children}
-      <Badge
-        className={cn(
-          "absolute top-0 right-0 rounded-full translate-x-1.5 -translate-y-1.5 px-2",
-          className
-        )}
-        {...props}
-      >
-        {count > 99 ? "99+" : count}
-      </Badge>
+      {count > 0 && (
+        <Badge
+          variant="destructive"
+          className={cn(
+            "absolute -top-1 -right-3 rounded-full translate-x-1.5 -translate-y-1.5 px-2",
+            className
+          )}
+          {...props}
+        >
+          {count > 99 ? "99+" : count}
+        </Badge>
+      )}
     </div>
   );
 }
