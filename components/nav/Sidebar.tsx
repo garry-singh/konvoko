@@ -12,10 +12,23 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { CreditCard, User, Bell, UserPlus, Brain } from "lucide-react";
+import {
+  CreditCard,
+  User,
+  Bell,
+  UserPlus,
+  Brain,
+  User as UserIcon,
+} from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ModeToggle } from "../ModeToggle";
 
 const navItems = [
+  {
+    title: "Notifications",
+    url: "/notifications",
+    icon: Bell,
+  },
   {
     title: "Friends",
     url: "/friends",
@@ -49,24 +62,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent className="flex items-center group-data-[collapsible=icon]:items-center">
         <SignedIn>
-          {/* Notifications */}
-          <Link
-            href="/notifications"
-            className="w-full flex justify-center group-data-[collapsible=icon]:justify-center"
-          >
-            <SidebarMenuButton className="group-data-[collapsible=icon]:mx-auto">
-              <Bell />
-              Notifications
-            </SidebarMenuButton>
-          </Link>
-          {/* Main nav items */}
           {navItems.map((item) => (
             <Link
               href={item.url}
               key={item.title}
               className="w-full flex justify-center group-data-[collapsible=icon]:justify-center"
             >
-              <SidebarMenuButton className="group-data-[collapsible=icon]:mx-auto">
+              <SidebarMenuButton
+                className="group-data-[collapsible=icon]:mx-auto"
+                tooltip={item.title}
+              >
                 <item.icon />
                 {item.title}
               </SidebarMenuButton>
@@ -78,8 +83,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             href="/sign-in"
             className="w-full flex justify-center group-data-[collapsible=icon]:justify-center"
           >
-            <SidebarMenuButton className="group-data-[collapsible=icon]:mx-auto">
-              <User />
+            <SidebarMenuButton
+              className="group-data-[collapsible=icon]:mx-auto"
+              tooltip="Sign In"
+            >
+              <UserIcon />
               Sign In
             </SidebarMenuButton>
           </Link>
@@ -87,7 +95,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             href="/sign-up"
             className="w-full flex justify-center group-data-[collapsible=icon]:justify-center"
           >
-            <SidebarMenuButton className="group-data-[collapsible=icon]:mx-auto">
+            <SidebarMenuButton
+              className="group-data-[collapsible=icon]:mx-auto"
+              tooltip="Sign Up"
+            >
               <UserPlus />
               Sign Up
             </SidebarMenuButton>
@@ -95,6 +106,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SignedOut>
       </SidebarContent>
       <SidebarFooter className="flex items-center justify-center group-data-[collapsible=icon]:justify-center">
+        <ModeToggle />
         <SignedIn>
           <UserButton />
         </SignedIn>

@@ -5,6 +5,7 @@ import "./globals.css";
 import { AppSidebar } from "@/components/nav/Sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import BreadcrumbHeader from "@/components/nav/BreadcrumbHeader";
+import { ThemeProvider } from "@/providers/ThemeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,15 +34,22 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
-          <SidebarProvider>
-            <div className="flex min-h-screen w-full">
-              <AppSidebar />
-              <main className="flex-1">
-                <BreadcrumbHeader />
-                {children}
-              </main>
-            </div>
-          </SidebarProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <SidebarProvider>
+              <div className="flex min-h-screen w-full">
+                <AppSidebar />
+                <main className="flex-1">
+                  <BreadcrumbHeader />
+                  {children}
+                </main>
+              </div>
+            </SidebarProvider>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>
