@@ -21,11 +21,17 @@ import {
   Brain,
   User as UserIcon,
   MessageCircle,
+  Search,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ModeToggle } from "../ModeToggle";
 
 const navItems = [
+  {
+    title: "Explore",
+    url: "/explore",
+    icon: Search,
+  },
   {
     title: "Chat",
     url: "/chat",

@@ -1,12 +1,13 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { getCurrentUserOrThrow } from "./users";
 
 export const follow = mutation({
   args: { followingId: v.string() },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    const followerId = identity.subject;
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const followerId = currentUser._id;
+    
     // Prevent duplicate follows
     const existing = await ctx.db
       .query("follows")
@@ -25,9 +26,9 @@ export const follow = mutation({
 export const unfollow = mutation({
   args: { followingId: v.string() },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    const followerId = identity.subject;
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const followerId = currentUser._id;
+    
     const follow = await ctx.db
       .query("follows")
       .withIndex("byPair", (q) => q.eq("followerId", followerId).eq("followingId", args.followingId))
@@ -55,5 +56,19 @@ export const followingCount = query({
       .query("follows")
       .withIndex("byFollower", (q) => q.eq("followerId", args.userId))
       .collect();
+  },
+});
+
+export const isFollowing = query({
+  args: { followerId: v.string(), followingId: v.string() },
+  handler: async (ctx, args) => {
+    const follow = await ctx.db
+      .query("follows")
+      .withIndex("byPair", (q) => 
+        q.eq("followerId", args.followerId).eq("followingId", args.followingId)
+      )
+      .unique();
+    
+    return follow !== null;
   },
 });

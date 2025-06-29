@@ -85,14 +85,79 @@ export const deleteFromClerk = internalMutation({
       .unique();
   }
 
-  export const userByClerkId = query({
-    args: {
-      clerkId: v.string(),
-    },
-    handler: async (ctx, args) => {
-      return await ctx.db
+export const userByClerkId = query({
+  args: {
+    clerkId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("users")
+      .withIndex("byClerkUserId", (q) => q.eq("clerkUserId", args.clerkId))
+      .unique();
+  },
+});
+
+export const getUserByUsername = query({
+  args: {
+    username: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("users")
+      .withIndex("byUsername", (q) => q.eq("username", args.username))
+      .unique();
+  },
+});
+
+export const searchUsers = query({
+  args: { 
+    search: v.string(),
+    paginationOpts: v.optional(v.object({
+      numItems: v.number(),
+      cursor: v.optional(v.union(v.string(), v.null()))
+    }))
+  },
+  handler: async (ctx, args) => {
+    const search = args.search.toLowerCase().trim();
+    
+    // Use pagination for scalability
+    const paginationOpts = args.paginationOpts ?? { numItems: 20 };
+    const paginationOptions = {
+      numItems: paginationOpts.numItems,
+      cursor: paginationOpts.cursor ?? null
+    };
+    
+    // Use a single paginated query with username index
+    const users = await ctx.db
+      .query("users")
+      .withIndex("byUsername", (q) => 
+        q.gte("username", search).lt("username", search + "\uffff")
+      )
+      .paginate(paginationOptions);
+    
+    // If we don't have enough results, get more from fullName search
+    // but we need to do this without pagination to avoid the multiple pagination error
+    if (users.page.length < paginationOpts.numItems) {
+      const additionalUsers = await ctx.db
         .query("users")
-        .withIndex("byClerkUserId", (q) => q.eq("clerkUserId", args.clerkId))
-        .unique();
-    },
-  });
+        .withIndex("byFullName", (q) => 
+          q.gte("fullName", search).lt("fullName", search + "\uffff")
+        )
+        .collect();
+      
+      // Filter out users already in the first results and limit to what we need
+      const existingIds = new Set(users.page.map(u => u._id));
+      const additionalFiltered = additionalUsers
+        .filter(user => !existingIds.has(user._id))
+        .slice(0, paginationOpts.numItems - users.page.length);
+      
+      return {
+        page: [...users.page, ...additionalFiltered],
+        isDone: users.isDone,
+        continueCursor: users.continueCursor
+      };
+    }
+    
+    return users;
+  }
+});

@@ -7,6 +7,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import BreadcrumbHeader from "@/components/nav/BreadcrumbHeader";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import ConvexClientProvider from "@/providers/ConvexClientProvider";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,6 +51,7 @@ export default function RootLayout({
                     {children}
                   </main>
                 </div>
+                <Toaster />
               </SidebarProvider>
             </ThemeProvider>
           </ConvexClientProvider>

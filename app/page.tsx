@@ -12,7 +12,7 @@ import { Doc } from "@/convex/_generated/dataModel";
 
 export default function Home() {
   const user = useQuery(api.users.currentUser);
-  const feedPosts = useQuery(api.posts.getFeedPosts);
+  const feedPosts = useQuery(api.posts.getFeedPosts, user ? {} : "skip");
   const userPosts = useQuery(
     api.posts.getUserPosts,
     user ? { userId: user._id } : "skip"
@@ -22,9 +22,16 @@ export default function Home() {
     user ? { userId: user._id } : "skip"
   );
 
-  // TODO: Replace with real queries
-  const followerCount = 123;
-  const followingCount = 45;
+  // Get follower/following counts
+  const followerCount = useQuery(
+    api.follows.followerCount,
+    user ? { userId: user._id } : "skip"
+  );
+
+  const followingCount = useQuery(
+    api.follows.followingCount,
+    user ? { userId: user._id } : "skip"
+  );
 
   const renderPosts = (
     posts: (Doc<"posts"> | null)[] | undefined,
@@ -89,7 +96,7 @@ export default function Home() {
             Loading...
           </div>
         ) : (
-          <div className="max-w-2xl mx-auto py-8 px-4">
+          <div className="max-w-2xl mx-auto py-4 px-4">
             {/* Profile Header */}
             <div className="flex items-center gap-6 mb-8">
               <Image
@@ -109,13 +116,17 @@ export default function Home() {
               </div>
               <div className="flex gap-6 ml-auto">
                 <div className="flex flex-col items-center">
-                  <span className="font-semibold">{followerCount}</span>
+                  <span className="font-semibold">
+                    {(followerCount as Doc<"follows">[])?.length ?? 0}
+                  </span>
                   <span className="text-xs text-muted-foreground">
                     Followers
                   </span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <span className="font-semibold">{followingCount}</span>
+                  <span className="font-semibold">
+                    {(followingCount as Doc<"follows">[])?.length ?? 0}
+                  </span>
                   <span className="text-xs text-muted-foreground">
                     Following
                   </span>

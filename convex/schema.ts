@@ -13,7 +13,9 @@ export default defineSchema({
     username: v.string(),
   })
   .index("byClerkUserId", ["clerkUserId"])
-  .index("byLastLoginAt", ["lastLoginAt"]),
+  .index("byLastLoginAt", ["lastLoginAt"])
+  .index("byUsername", ["username"])
+  .index("byFullName", ["fullName"]),
   
   posts: defineTable({
     userId: v.string(),

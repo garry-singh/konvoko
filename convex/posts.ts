@@ -308,6 +308,28 @@ export const hasUserSavedPost = query({
   },
 });
 
+export const getPostsByUsername = query({
+  args: { username: v.string() },
+  handler: async (ctx, args) => {
+    // First find the user by username
+    const user = await ctx.db
+      .query("users")
+      .withIndex("byUsername", (q) => q.eq("username", args.username))
+      .unique();
+    
+    if (!user) {
+      return [];
+    }
+    
+    // Then get their posts
+    return await ctx.db
+      .query("posts")
+      .withIndex("byUser", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .collect();
+  },
+});
+
 // Generic function to get posts by user IDs
 async function getPostsByUserIds(ctx: QueryCtx, userIds: string[]) {
   const allPosts = [];
