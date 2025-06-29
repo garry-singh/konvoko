@@ -13,6 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 // Define breadcrumb mappings for different routes
 const breadcrumbMap: Record<string, string> = {
@@ -62,8 +64,42 @@ function generateBreadcrumbs(pathname: string) {
 }
 
 export default function BreadcrumbHeader() {
-  const pathname = usePathname();
-  const breadcrumbs = generateBreadcrumbs(pathname || "");
+  const pathname = usePathname() || "";
+  const segments = pathname.split("/").filter(Boolean);
+
+  // Always call useQuery, but only use result if on /post/[id]
+  const postId =
+    segments[0] === "post" && segments[1] ? segments[1] : undefined;
+  // @ts-expect-error: postId may be string, Convex will handle it or skip
+  const post = useQuery(api.posts.getPostById, postId ? { postId } : "skip");
+  const currentUser = useQuery(api.users.currentUser);
+
+  let breadcrumbs;
+  if (segments[0] === "post" && segments[1]) {
+    let isOwnPost = false;
+    if (
+      post &&
+      post.authorUsername &&
+      currentUser &&
+      post.authorUsername === currentUser.username
+    ) {
+      isOwnPost = true;
+    }
+    breadcrumbs = [
+      { label: "Home", href: "/" },
+      ...(!isOwnPost && post && post.authorUsername
+        ? [
+            {
+              label: `@${post.authorUsername}`,
+              href: `/profile/${post.authorUsername}`,
+            },
+          ]
+        : []),
+      { label: "Post", isCurrent: true },
+    ];
+  } else {
+    breadcrumbs = generateBreadcrumbs(pathname);
+  }
 
   // Don't show breadcrumbs on the home page
   if (pathname === "/") {
@@ -90,14 +126,18 @@ export default function BreadcrumbHeader() {
           <Breadcrumb>
             <BreadcrumbList>
               {breadcrumbs.map((breadcrumb, index) => (
-                <React.Fragment key={breadcrumb.href}>
+                <React.Fragment
+                  key={`${breadcrumb.href || ""}-${breadcrumb.label}-${index}`}
+                >
                   <BreadcrumbItem className="hidden md:block">
                     {breadcrumb.isCurrent ? (
                       <BreadcrumbPage>{breadcrumb.label}</BreadcrumbPage>
-                    ) : (
+                    ) : breadcrumb.href ? (
                       <BreadcrumbLink asChild>
                         <Link href={breadcrumb.href}>{breadcrumb.label}</Link>
                       </BreadcrumbLink>
+                    ) : (
+                      <BreadcrumbPage>{breadcrumb.label}</BreadcrumbPage>
                     )}
                   </BreadcrumbItem>
                   {index < breadcrumbs.length - 1 && (

@@ -14,6 +14,42 @@ export default defineSchema({
   })
   .index("byClerkUserId", ["clerkUserId"])
   .index("byLastLoginAt", ["lastLoginAt"]),
+  
+  posts: defineTable({
+    userId: v.string(),
+    content: v.string(),
+    createdAt: v.number(),
+    likeCount: v.number(),
+    replyCount: v.number(),
+    repostCount: v.number(),
+    parentId: v.optional(v.id("posts")),
+    authorName: v.string(),
+    authorId: v.string(),
+    authorUsername: v.string(),
+    authorImageUrl: v.string(),
+  })
+  .index("byUser", ["userId"])
+  .index("byCreatedAt", ["createdAt"])
+  .index("byParent", ["parentId"]),
+  
+  likes: defineTable({
+    postId: v.id("posts"),
+    userId: v.string(),
+    createdAt: v.number(),
+  })
+  .index("byPostAndUser", ["postId", "userId"])
+  .index("byUser", ["userId"])
+  .index("byPost", ["postId"]),
+  
+  saves: defineTable({
+    postId: v.id("posts"),
+    userId: v.string(),
+    createdAt: v.number(),
+  })
+  .index("byPostAndUser", ["postId", "userId"])
+  .index("byUser", ["userId"])
+  .index("byPost", ["postId"]),
+  
   follows: defineTable({
     followerId: v.string(),
     followingId: v.string(),
