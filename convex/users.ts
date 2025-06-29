@@ -19,7 +19,7 @@ export const getRecentUsers = query({
     }
 });
 
-export const current = query({
+export const currentUser = query({
     args: {},
     handler: async ctx => {
         return await getCurrentUser(ctx)

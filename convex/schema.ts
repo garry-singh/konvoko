@@ -14,4 +14,12 @@ export default defineSchema({
   })
   .index("byClerkUserId", ["clerkUserId"])
   .index("byLastLoginAt", ["lastLoginAt"]),
+  follows: defineTable({
+    followerId: v.string(),
+    followingId: v.string(),
+    createdAt: v.number(),
+  })
+  .index("byFollower", ["followerId"])
+  .index("byFollowing", ["followingId"])
+  .index("byPair", ["followerId", "followingId"]),
 });
