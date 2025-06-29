@@ -60,4 +60,23 @@ export default defineSchema({
   .index("byFollower", ["followerId"])
   .index("byFollowing", ["followingId"])
   .index("byPair", ["followerId", "followingId"]),
+
+  chats: defineTable({
+    participant1Id: v.id("users"),
+    participant2Id: v.id("users"),
+    createdAt: v.number(),
+    participant1LastReadAt: v.optional(v.number()),
+    participant2LastReadAt: v.optional(v.number()),
+  })
+  .index("byParticipant1", ["participant1Id"])
+  .index("byParticipant2", ["participant2Id"])
+  .index("byParticipants", ["participant1Id", "participant2Id"]),
+
+  messages: defineTable({
+    chatId: v.id("chats"),
+    senderId: v.id("users"),
+    content: v.string(),
+    createdAt: v.number(),
+  })
+  .index("byChat", ["chatId"]),
 });
