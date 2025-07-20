@@ -74,6 +74,7 @@ export function PostCard({
   const { user } = useUser();
   const [isLiking, setIsLiking] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const updatePost = useMutation(api.posts.updatePost);
   const [isEditing, setIsEditing] = useState(false);
   const form = useForm<EditPostForm>({
@@ -100,6 +101,10 @@ export function PostCard({
   );
 
   const isAuthor = currentUser && currentUser.username === username;
+
+  // Content truncation logic
+  const shouldTruncate = content.length > 150;
+  const displayContent = isExpanded ? content : content.slice(0, 200);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -315,14 +320,33 @@ export function PostCard({
           </form>
         </Form>
       ) : (
-        <Link
-          href={`/post/${postId}`}
-          className="block text-base py-2 group-hover:underline focus:outline-none"
-          aria-label="View post"
-          tabIndex={0}
-        >
-          {content}
-        </Link>
+        <div className="py-2">
+          <Link
+            href={`/post/${postId}`}
+            className="block text-base group-hover:underline focus:outline-none"
+            aria-label="View post"
+            tabIndex={0}
+          >
+            {displayContent}
+            {shouldTruncate && !isExpanded && (
+              <span className="text-muted-foreground">...</span>
+            )}
+          </Link>
+          {shouldTruncate && (
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 h-auto text-muted-foreground hover:text-foreground"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsExpanded(!isExpanded);
+              }}
+            >
+              {isExpanded ? "Show less" : "Read more"}
+            </Button>
+          )}
+        </div>
       )}
       <div className="flex items-center justify-between gap-2 mt-2">
         <Button

@@ -3,7 +3,13 @@
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, MoreVertical, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
@@ -11,6 +17,7 @@ import { api } from "@/convex/_generated/api";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { Id } from "@/convex/_generated/dataModel";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 export default function ChatIdPage() {
   const params = useParams();
@@ -18,6 +25,8 @@ export default function ChatIdPage() {
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isAuthenticated } = useConvexAuth();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch chat data
   const chat = useQuery(api.chats.getChat, { chatId });
@@ -28,6 +37,7 @@ export default function ChatIdPage() {
   // Mutations
   const sendMessage = useMutation(api.chats.sendMessage);
   const markChatAsRead = useMutation(api.chats.markChatAsRead);
+  const deleteChat = useMutation(api.chats.deleteChat);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -73,6 +83,96 @@ export default function ChatIdPage() {
     }
   };
 
+  const handleDeleteChat = async () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteChat({ chatId });
+      toast.success("Chat deleted successfully");
+      // Redirect to chat list
+      window.location.href = "/chat";
+    } catch {
+      toast.error("Failed to delete chat");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Format message time with relative time for recent messages
+  const formatMessageTime = (timestamp: number) => {
+    const now = Date.now();
+    const messageDate = new Date(timestamp);
+    const diffInHours = (now - timestamp) / (1000 * 60 * 60);
+    const diffInDays = diffInHours / 24;
+
+    // If message is from today, show time only
+    if (
+      diffInHours < 24 &&
+      messageDate.toDateString() === new Date().toDateString()
+    ) {
+      return messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    // If message is from yesterday, show "Yesterday" + time
+    if (
+      diffInDays < 2 &&
+      messageDate.toDateString() ===
+        new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString()
+    ) {
+      return `Yesterday ${messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    }
+
+    // If message is from this week, show day name + time
+    if (diffInDays < 7) {
+      return `${messageDate.toLocaleDateString([], { weekday: "short" })} ${messageDate.toLocaleTimeString(
+        [],
+        {
+          hour: "2-digit",
+          minute: "2-digit",
+        }
+      )}`;
+    }
+
+    // For older messages, show full date and time
+    return messageDate.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Format date header for message groups
+  const formatDateHeader = (timestamp: number) => {
+    const messageDate = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (messageDate.toDateString() === today.toDateString()) {
+      return "Today";
+    } else if (messageDate.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    } else {
+      return messageDate.toLocaleDateString([], {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+  };
+
   if (!chat) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -104,7 +204,7 @@ export default function ChatIdPage() {
           height={40}
           className="rounded-full object-cover"
         />
-        <div className="flex flex-col min-w-0">
+        <div className="flex flex-col min-w-0 flex-1">
           <span className="font-semibold truncate">
             {otherParticipant.fullName}
           </span>
@@ -112,6 +212,22 @@ export default function ChatIdPage() {
             @{otherParticipant.username}
           </span>
         </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={handleDeleteChat}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Chat
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Scrollable messages area */}
@@ -121,34 +237,54 @@ export default function ChatIdPage() {
             <div className="text-muted-foreground">Loading messages...</div>
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex justify-center items-center h-32">
+          <div className="flex flex-col justify-center items-center h-32 gap-2">
             <div className="text-muted-foreground">
               No messages yet. Start the conversation!
             </div>
+            <div className="text-xs text-muted-foreground">
+              {new Date().toLocaleDateString([], {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </div>
           </div>
         ) : (
-          messages.map((msg) => (
-            <div
-              key={msg._id}
-              className={`flex ${msg.senderId === chat.currentUserId ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[70%] rounded-lg px-4 py-2 text-sm shadow-sm whitespace-pre-line ${
-                  msg.senderId === chat.currentUserId
-                    ? "bg-primary text-primary-foreground rounded-br-none"
-                    : "bg-background border rounded-bl-none"
-                }`}
-              >
-                {msg.content}
-                <div className="text-xs text-muted-foreground mt-1 text-right">
-                  {new Date(msg.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+          messages.map((msg, index) => {
+            const showDateHeader =
+              index === 0 ||
+              new Date(msg.createdAt).toDateString() !==
+                new Date(messages[index - 1].createdAt).toDateString();
+
+            return (
+              <div key={msg._id}>
+                {showDateHeader && (
+                  <div className="flex justify-center my-4">
+                    <div className="bg-muted px-3 py-1 rounded-full text-xs text-muted-foreground">
+                      {formatDateHeader(msg.createdAt)}
+                    </div>
+                  </div>
+                )}
+                <div
+                  className={`flex ${msg.senderId === chat.currentUserId ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[70%] rounded-lg px-4 py-2 text-sm shadow-sm whitespace-pre-line ${
+                      msg.senderId === chat.currentUserId
+                        ? "bg-primary text-primary-foreground rounded-br-none"
+                        : "bg-background border rounded-bl-none"
+                    }`}
+                  >
+                    {msg.content}
+                    <div className="text-xs text-muted-foreground mt-1 text-right">
+                      {formatMessageTime(msg.createdAt)}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -168,6 +304,16 @@ export default function ChatIdPage() {
           </Button>
         </form>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="Delete Chat"
+        description="Are you sure you want to delete this chat? This action cannot be undone and all messages will be permanently deleted."
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

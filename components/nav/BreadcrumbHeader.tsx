@@ -19,6 +19,7 @@ import { api } from "@/convex/_generated/api";
 // Define breadcrumb mappings for different routes
 const breadcrumbMap: Record<string, string> = {
   "/": "Home",
+  "/chat": "Chat",
   "/friends": "Friends",
   "/notifications": "Notifications",
   "/subscription": "Subscription",
@@ -72,6 +73,13 @@ export default function BreadcrumbHeader() {
     segments[0] === "post" && segments[1] ? segments[1] : undefined;
   // @ts-expect-error: postId may be string, Convex will handle it or skip
   const post = useQuery(api.posts.getPostById, postId ? { postId } : "skip");
+
+  // Get chat information if on chat route
+  const chatId =
+    segments[0] === "chat" && segments[1] ? segments[1] : undefined;
+  // @ts-expect-error: chatId may be string, Convex will handle it or skip
+  const chat = useQuery(api.chats.getChat, chatId ? { chatId } : "skip");
+
   const currentUser = useQuery(api.users.currentUser);
 
   let breadcrumbs;
@@ -96,6 +104,17 @@ export default function BreadcrumbHeader() {
           ]
         : []),
       { label: "Post", isCurrent: true },
+    ];
+  } else if (segments[0] === "chat" && segments[1]) {
+    // Handle chat route - show participant username
+    const participantUsername = chat?.otherParticipant?.username;
+    breadcrumbs = [
+      { label: "Home", href: "/" },
+      { label: "Chat", href: "/chat" },
+      {
+        label: participantUsername ? `@${participantUsername}` : "Loading...",
+        isCurrent: true,
+      },
     ];
   } else {
     breadcrumbs = generateBreadcrumbs(pathname);

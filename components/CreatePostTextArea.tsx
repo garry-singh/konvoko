@@ -26,10 +26,7 @@ export interface CreatePostTextAreaProps {
 }
 
 const createPostSchema = z.object({
-  content: z
-    .string()
-    .min(1, "Post cannot be empty")
-    .max(500, "Post must be less than 500 characters"),
+  content: z.string().min(1).max(500, "Post must be less than 500 characters"),
 });
 
 type CreatePostForm = z.infer<typeof createPostSchema>;

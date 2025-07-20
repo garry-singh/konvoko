@@ -125,6 +125,12 @@ export const createChat = mutation({
   args: { otherUserId: v.id("users") },
   handler: async (ctx, args) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
+    
+    // Prevent creating a chat with yourself
+    if (currentUser._id === args.otherUserId) {
+      throw new Error("Cannot create a chat with yourself");
+    }
+    
     // Check if a chat already exists between these users
     const existingChat = await ctx.db
       .query("chats")
@@ -200,5 +206,33 @@ export const markChatAsRead = mutation({
     } else {
       await ctx.db.patch(args.chatId, { participant2LastReadAt: now });
     }
+  },
+});
+
+export const deleteChat = mutation({
+  args: { chatId: v.id("chats") },
+  handler: async (ctx, args) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const chat = await ctx.db.get(args.chatId);
+    if (!chat) throw new Error("Chat not found");
+    
+    // Check if current user is a participant
+    if (chat.participant1Id !== currentUser._id && chat.participant2Id !== currentUser._id) {
+      throw new Error("Not a participant in this chat");
+    }
+    
+    // Delete all messages in the chat first
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("byChat", (q) => q.eq("chatId", args.chatId))
+      .collect();
+    
+    // Delete all messages
+    for (const message of messages) {
+      await ctx.db.delete(message._id);
+    }
+    
+    // Delete the chat
+    await ctx.db.delete(args.chatId);
   },
 }); 
